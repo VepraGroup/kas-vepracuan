@@ -1,0 +1,6 @@
+# Data bisnis (nama pembeli, email) — hanya diunggah ke Apps Script, TIDAK ke GitHub
+apps-script/Migrasi_Data.js
+*.csv
+node_modules/
+.DS_Store
+Thumbs.db
