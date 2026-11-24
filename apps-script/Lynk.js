@@ -10,11 +10,72 @@
  */
 
 const PRODUK_LYNK = [
-  { re: /Akses\s+Order\s+Kartu\s+Khusus\s+Reseller(?:\s*\d+\s*x)?/i, kategori: 'Penjualan Kartu', kartu: true, hargaSatuan: 15000 },
-  { re: /Panduan\s+Lengkap\s+A\s*-?\s*Z\s+Jadi\s+Reseller/i, kategori: 'Paket Reseller 68rb' },
-  { re: /Akses\s+Supplier\s+Eksklusif(?:\s+Jadi\s+Reseller)?/i, kategori: 'Akses Supplier' },
-  { re: /Kartu\s+(?:NFC\s+)?(?:Google\s+)?Review[^\n]{0,40}/i, kategori: 'Penjualan Kartu', kartu: true, hargaSatuan: 50000 },
+  { re: /Akses\s+Order\s+Kartu\s+Khusus\s+Reseller(?:\s*\d+\s*x)?/i, nama: 'Akses Order Kartu Khusus Reseller', kategori: 'Penjualan Kartu', kartu: true, hargaSatuan: 15000 },
+  { re: /Panduan\s+Lengkap\s+A\s*-?\s*Z\s+Jadi\s+Reseller/i, nama: 'Panduan Lengkap A-Z Jadi Reseller', kategori: 'Paket Reseller 68rb' },
+  { re: /Akses\s+Supplier\s+Eksklusif(?:\s+Jadi\s+Reseller)?/i, nama: 'Akses Supplier Eksklusif Jadi Reseller', kategori: 'Akses Supplier' },
+  { re: /Kartu\s+(?:NFC\s+)?(?:Google\s+)?Review[^\n]{0,40}/i, nama: '', kategori: 'Penjualan Kartu', kartu: true, hargaSatuan: 50000 },
 ];
+
+/**
+ * Format email Lynk "Sales notification" (dicek dengan email asli, Nov 2026):
+ *   Order from <Nama>, <email> <hp>
+ *   ITEMS
+ *   - <NAMA PRODUK> <N>x Rp <harga satuan>     (bisa lebih dari satu baris)
+ *   Total Order Rp ...
+ *   TRANSACTION DETAIL
+ *   TRX ID: ...
+ *   Total item (N items) Rp ... / Total Addon / Total shipping / Item Discount - Rp / Shipping Discount - Rp / Affiliate - Rp
+ *   Total Rp ...
+ */
+function parseLynkStruktur_(text) {
+  if (!/Order\s+from/i.test(text) || !/\bITEMS\b/.test(text)) return null;
+  const mB = text.match(/Order\s+from\s+([^,\n]+?)\s*(?:,|\n)/i);
+  const pembeli = mB ? mB[1].trim() : '';
+  const mTrx = text.match(/TRX\s*ID\s*:\s*([A-Za-z0-9-]+)/i);
+  const iItems = text.search(/\bITEMS\b/);
+  let iEnd = text.search(/Total\s+Order/i);
+  if (iEnd < iItems) iEnd = text.search(/TRANSACTION\s+DETAIL/i);
+  const blok = text.slice(iItems + 5, iEnd > iItems ? iEnd : undefined);
+  const items = [];
+  const re = /([^\n]*?[A-Za-z][^\n]*?)\s+(\d+)\s*x\s+Rp\.?\s*([\d.,]+)/gi;
+  let m;
+  while ((m = re.exec(blok)) !== null) {
+    items.push({ nama: m[1].replace(/^[\s\-•*]+/, '').trim(), qty: Number(m[2]), harga: parseRp_(m[3]) });
+  }
+  if (!items.length) return null;
+  const det = function (label) {
+    const x = text.match(new RegExp(label + '[^\\n]*?Rp\\.?\\s*([\\d.,]+)', 'i'));
+    return x ? parseRp_(x[1]) : 0;
+  };
+  const shipping = det('Total\\s+shipping'), addon = det('Total\\s+Addon'), itemDisc = det('Item\\s+Discount'),
+    shipDisc = det('Shipping\\s+Discount'), affiliate = det('Affiliate');
+  const mTot = text.match(/(?:^|\n)\s*Total\s+Rp\.?\s*([\d.,]+)/i);
+  const total = mTot ? parseRp_(mTot[1]) : det('Total\\s+Order');
+
+  const orders = items.map(function (it) {
+    const def = PRODUK_LYNK.filter(function (p) { return p.re.test(it.nama); })[0];
+    const sub = it.qty * it.harga;
+    return {
+      produk: def ? ((def.nama || it.nama) + (def.kartu ? ' ' + it.qty + 'x' : '')) : it.nama,
+      kategori: def ? def.kategori : 'Pemasukan Lain', kartu: !!(def && def.kartu),
+      qty: def && def.kartu ? it.qty : 0, jumlah: sub, harga_barang: sub, ongkir: 0, biaya_lynk: 0, affiliate: 0,
+      pembeli: pembeli, perlu_cek: !def,
+    };
+  });
+  // Ongkir, addon & diskon ditempelkan ke order kartu pertama (atau order pertama).
+  const target = orders.filter(function (o) { return o.kartu; })[0] || orders[0];
+  target.ongkir = shipping;
+  target.jumlah += shipping + addon - itemDisc - shipDisc;
+  target.affiliate = affiliate;
+  let catatan = mTrx ? 'TRX ' + mTrx[1] : '';
+  const jumlahSemua = orders.reduce(function (a, o) { return a + o.jumlah; }, 0);
+  if (total && Math.abs(jumlahSemua - total) > 1) {
+    catatan += ' | Jumlah terbaca ' + jumlahSemua + ' ≠ total email ' + total;
+    orders.forEach(function (o) { o.perlu_cek = true; });
+  }
+  orders.forEach(function (o) { if (!(o.jumlah > 0)) o.perlu_cek = true; });
+  return { jenis: 'order', orders: orders, catatan: catatan.trim(), trx: mTrx ? mTrx[1] : '' };
+}
 
 /** Fungsi yang dijalankan trigger berwaktu (tiap 10 menit). */
 function syncLynkOtomatis() {
@@ -101,6 +162,13 @@ function syncLynk_(opt) {
                     id: id + '-biaya', tanggal: tgl, jenis: 'keluar', kategori: 'Biaya Admin', akun: 'Lynk',
                     jumlah: o.biaya_lynk, keterangan: 'Biaya Lynk – ' + (o.produk || '') + (o.pembeli ? ' – ' + o.pembeli : ''),
                     sumber: 'gmail-lynk', ref_id: mid + '#biaya' + (i + 1), dibuat_oleh: 'sistem', dibuat_pada: nowIso_(),
+                  });
+                }
+                if (o.affiliate > 0) {
+                  txBaru.push({
+                    id: id + '-affiliate', tanggal: tgl, jenis: 'keluar', kategori: 'Komisi Reseller/Affiliate', akun: 'Lynk',
+                    jumlah: o.affiliate, keterangan: 'Komisi affiliate Lynk – ' + (o.produk || '') + (o.pembeli ? ' – ' + o.pembeli : ''),
+                    sumber: 'gmail-lynk', ref_id: mid + '#affiliate' + (i + 1), dibuat_oleh: 'sistem', dibuat_pada: nowIso_(),
                   });
                 }
                 hasil.order_baru++;
@@ -231,7 +299,11 @@ function parseLynk_(subject, body) {
     return { jenis: 'tarik', jumlah: j };
   }
 
-  // Cari semua penyebutan produk di isi email.
+  // Format resmi email Lynk (paling bisa dipercaya).
+  const struktur = parseLynkStruktur_(text);
+  if (struktur) return struktur;
+
+  // Cadangan untuk format lain: cari semua penyebutan produk di isi email.
   const temuan = [];
   PRODUK_LYNK.forEach(function (p) {
     const re = new RegExp(p.re.source, 'gi');
