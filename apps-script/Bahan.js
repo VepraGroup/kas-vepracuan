@@ -34,6 +34,7 @@ function pastikanSkema_() {
       return { kode: b[0], nama: b[1], satuan: b[2], per_kartu: b[3], batas: b[4], aktif: 'TRUE' };
     }));
   }
+  pastikanKategoriTambahan_();
   props_().setProperty('SKEMA_VERSI', SKEMA_VERSI);
 }
 

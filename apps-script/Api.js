@@ -30,6 +30,8 @@ function routes_() { return {
   bacaFoto:        { izin: 'tambah',     fn: bacaFoto_ },
   uploadBukti:     { izin: 'tambah',     fn: uploadBukti_ },
   laporan:         { izin: 'keuangan',   fn: laporan_ },
+  arusKas:         { izin: 'keuangan',   fn: arusKas_ },
+  neraca:          { izin: 'keuangan',   fn: neraca_ },
   syncLynk:        { izin: 'tambah',     fn: function () { return syncLynk_({}); } },
   getPengaturan:   { izin: 'pengaturan', fn: getPengaturan_ },
   simpanPengguna:  { izin: 'pengaturan', fn: simpanPengguna_, tulis: true },

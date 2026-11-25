@@ -41,7 +41,7 @@ const DEFAULT_BAHAN = [
   ['stiker', 'Stiker', 'pcs', 1, 20],
   ['polymailer', 'Polymailer', 'pcs', 0, 10],
 ];
-const SKEMA_VERSI = '2';
+const SKEMA_VERSI = '3';
 
 const DEFAULT_KATEGORI = [
   // [nama, jenis, hitung_laba]
@@ -57,6 +57,7 @@ const DEFAULT_KATEGORI = [
   ['Kemasan', 'keluar', true],
   ['Aplikasi & Langganan', 'keluar', true],
   ['Komisi Reseller/Affiliate', 'keluar', true],
+  ['Gaji Karyawan', 'keluar', true],
   ['Biaya Admin', 'keluar', true],
   ['Pengeluaran Lain', 'keluar', true],
   ['Prive (ambil pribadi)', 'keluar', false],

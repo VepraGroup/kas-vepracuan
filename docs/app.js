@@ -152,7 +152,7 @@ async function mulai() {
 const VIEWS = {
   beranda: ['Beranda', viewBeranda], catat: ['Catat', viewCatat], transaksi: ['Transaksi', viewTransaksi],
   stok: ['Stok Kartu', viewStok], lainnya: ['Lainnya', viewLainnya], laporan: ['Laporan', viewLaporan],
-  pengaturan: ['Pengaturan', viewPengaturan],
+  pengaturan: ['Pengaturan', viewPengaturan], aruskas: ['Arus Kas', viewArusKas], neraca: ['Neraca', viewNeraca],
 };
 async function router() {
   if (!S.token || !S.user) return;
@@ -161,7 +161,7 @@ async function router() {
   $('#page-title').textContent = v[0];
   $$('.bottomnav a').forEach((a) => {
     const n = a.dataset.nav;
-    a.classList.toggle('active', n === name || (n === 'lainnya' && (name === 'laporan' || name === 'pengaturan')));
+    a.classList.toggle('active', n === name || (n === 'lainnya' && (['laporan', 'pengaturan', 'aruskas', 'neraca'].indexOf(name) >= 0)));
   });
   window.scrollTo(0, 0);
   try {
@@ -450,6 +450,7 @@ const ISI_CEPAT = [
   { ikon: 'stiker', label: 'Beli stiker', jenis: 'keluar', kategori: 'Cetak Kartu & Bahan', akun: 'Bank', ket: 'Beli stiker', bahan: 'stiker' },
   { ikon: 'kemasan', label: 'Kemasan', jenis: 'keluar', kategori: 'Kemasan', akun: 'Bank', ket: 'Polymailer / bubble wrap', bahan: 'polymailer' },
   { ikon: 'truk', label: 'Ongkir', jenis: 'keluar', kategori: 'Ongkir', akun: 'Bank', ket: 'Ongkir Biteship' },
+  { ikon: 'gaji', label: 'Gaji', jenis: 'keluar', kategori: 'Gaji Karyawan', akun: 'Bank', ket: 'Gaji ' },
   { ikon: 'iklan', label: 'Iklan', jenis: 'keluar', kategori: 'Iklan & Promosi', akun: 'Bank', ket: 'Iklan' },
   { ikon: 'modal', label: 'Modal masuk', jenis: 'masuk', kategori: 'Modal Masuk', akun: 'Bank', ket: 'Setor modal' },
   { ikon: 'prive', label: 'Prive', jenis: 'keluar', kategori: 'Prive (ambil pribadi)', akun: 'Bank', ket: 'Ambil pribadi' },
@@ -993,7 +994,9 @@ async function viewBahan(el, data) {
 /* ---------- Lainnya & Laporan ---------- */
 function viewLainnya(el) {
   el.innerHTML = `<div class="card"><ul class="list">
-    ${bisa('keuangan') ? `<li><a href="#/laporan" class="menu">${bub('laporan', 'c-blue')}<span>Laporan bulanan</span>${ic('kanan', 'chev')}</a></li>` : ''}
+    ${bisa('keuangan') ? `<li><a href="#/laporan" class="menu">${bub('laporan', 'c-blue')}<span>Laporan bulanan (laba rugi)</span>${ic('kanan', 'chev')}</a></li>` : ''}
+    ${bisa('keuangan') ? `<li><a href="#/aruskas" class="menu">${bub('arus', 'c-green')}<span>Arus kas</span>${ic('kanan', 'chev')}</a></li>` : ''}
+    ${bisa('keuangan') ? `<li><a href="#/neraca" class="menu">${bub('timbang', 'c-purple')}<span>Neraca</span>${ic('kanan', 'chev')}</a></li>` : ''}
     ${isOwner() ? `<li><a href="#/pengaturan" class="menu">${bub('atur', 'c-yellow')}<span>Pengaturan</span>${ic('kanan', 'chev')}</a></li>` : ''}
     <li><a href="#" id="l-keluar" class="menu out">${bub('logout', 'c-red')}<span>Keluar</span></a></li></ul></div>
     <p class="small muted">Masuk sebagai ${esc(S.user.email)} (${isOwner() ? 'owner' : 'admin'}).</p>`;
@@ -1022,6 +1025,77 @@ async function viewLaporan(el) {
     <p class="small muted no-print">Di HP: ketuk tombol di atas, lalu pilih "Simpan sebagai PDF".</p>`;
   $('#r-prev').onclick = () => { S.bulan = geserBulan(S.bulan, -1); viewLaporan(el); };
   $('#r-next').onclick = () => { S.bulan = geserBulan(S.bulan, 1); viewLaporan(el); };
+}
+
+/* ---------- Arus kas & Neraca (owner) ---------- */
+const kBaris = (nama, n, cls) => `<li><span>${esc(nama)}</span><span class="num ${cls || ''}">${rp(n)}</span></li>`;
+const kTanda = (nama, n) => `<li><span>${esc(nama)}</span><span class="num ${n > 0 ? 'in' : n < 0 ? 'out' : ''}">${n > 0 ? '+' : n < 0 ? '−' : ''}${rp(Math.abs(n))}</span></li>`;
+const kTotal = (nama, n, warna) => `<li class="total"><b>${esc(nama)}</b><b class="num ${warna === undefined ? (n >= 0 ? 'in' : 'out') : warna}">${rp(n)}</b></li>`;
+function navBulan(id) {
+  return `<div class="monthnav no-print"><button class="btn ghost sm" id="${id}-prev" aria-label="Bulan sebelumnya">${ic('kiri')}</button><b>${namaBulan(S.bulan)}</b><button class="btn ghost sm" id="${id}-next" aria-label="Bulan berikutnya">${ic('kanan')}</button></div>`;
+}
+function pasangNavBulan(id, ulang) {
+  $('#' + id + '-prev').onclick = () => { S.bulan = geserBulan(S.bulan, -1); ulang(); };
+  $('#' + id + '-next').onclick = () => { S.bulan = geserBulan(S.bulan, 1); ulang(); };
+}
+
+async function viewArusKas(el) {
+  if (!bisa('keuangan')) { el.innerHTML = '<div class="alert bad">Arus kas hanya untuk owner.</div>'; return; }
+  S.bulan = S.bulan || hariIni().slice(0, 7);
+  const a = await api('arusKas', { bulan: S.bulan });
+  el.innerHTML = `${navBulan('ak')}
+    <div class="card hero"><div class="label">Kas akhir ${namaBulan(a.bulan)}</div><div class="big num">${rp(a.akhir)}</div>
+      <div class="chips"><div class="chip dot-blue"><span class="nm">Kas awal bulan</span><b class="num">${rp(a.awal)}</b></div>
+      <div class="chip ${a.perubahan >= 0 ? 'dot-green' : 'dot-red'}"><span class="nm">${a.perubahan >= 0 ? 'Kas bertambah' : 'Kas berkurang'}</span><b class="num">${rp(Math.abs(a.perubahan))}</b></div></div></div>
+    <div class="card">${judul('masuk', 'c-green', '1. Arus kas dari kegiatan usaha')}
+      <h3 class="in">Uang masuk</h3><ul class="list">${a.operasional.masuk.map((x) => kBaris(x.nama, x.jumlah, 'in')).join('') || '<li class="muted">-</li>'}</ul>
+      <h3 class="out">Uang keluar</h3><ul class="list">${a.operasional.keluar.map((x) => kBaris(x.nama, x.jumlah, 'out')).join('') || '<li class="muted">-</li>'}</ul>
+      <ul class="list">${kTotal('Kas bersih dari usaha', a.operasional.bersih)}</ul></div>
+    <div class="card">${judul('modal', 'c-yellow', '2. Arus kas dari pendanaan')}
+      <ul class="list">${kTanda('Modal disetor', a.pendanaan.modal)}${kTanda('Prive (ambil pribadi)', a.pendanaan.prive)}
+      ${kTotal('Kas bersih dari pendanaan', a.pendanaan.bersih)}</ul></div>
+    <div class="card">${judul('tukar', 'c-blue', '3. Pindah dana & koreksi')}
+      <ul class="list">${kTanda('Pindah dana antar akun (bersih)', a.lainnya.pindah)}${kTanda('Koreksi / penyesuaian saldo', a.lainnya.koreksi)}
+      ${a.lainnya.lain ? kTanda('Lain-lain', a.lainnya.lain) : ''}${kTotal('Jumlah', a.lainnya.bersih)}</ul>
+      <p class="small muted">Pindah dana antar akun biasanya bernilai 0 karena hanya memindahkan uang. Angka selain 0 berasal dari penyesuaian saldo data lama.</p></div>
+    <div class="card">${judul('timbang', 'c-purple', 'Ringkasan')}
+      <ul class="list">${kBaris('Kas awal bulan', a.awal)}${kTanda('Usaha', a.operasional.bersih)}${kTanda('Pendanaan', a.pendanaan.bersih)}${kTanda('Pindah dana & koreksi', a.lainnya.bersih)}
+      ${kTotal('Kas akhir bulan', a.akhir, 'pd')}</ul></div>
+    <div class="card">${judul('bank', 'c-blue', 'Per akun')}
+      <div class="tabel-wrap"><table class="tabel"><thead><tr><th>Akun</th><th>Awal</th><th>Masuk</th><th>Keluar</th><th>Akhir</th></tr></thead>
+      <tbody>${a.per_akun.map((x) => `<tr><td>${esc(x.akun)}</td><td class="num">${rp(x.awal)}</td><td class="num in">${rp(x.masuk)}</td><td class="num out">${rp(x.keluar)}</td><td class="num"><b>${rp(x.akhir)}</b></td></tr>`).join('')}</tbody></table></div></div>
+    <button class="btn block no-print" onclick="window.print()">${ic('cetak')}Cetak / Simpan PDF</button>`;
+  pasangNavBulan('ak', () => viewArusKas(el));
+}
+
+async function viewNeraca(el) {
+  if (!bisa('keuangan')) { el.innerHTML = '<div class="alert bad">Neraca hanya untuk owner.</div>'; return; }
+  S.bulan = S.bulan || hariIni().slice(0, 7);
+  const n = await api('neraca', { bulan: S.bulan });
+  const seimbang = Math.abs(n.aset.total - n.ekuitas.total) < 1;
+  el.innerHTML = `${navBulan('nr')}
+    <div class="card hero"><div class="label">Neraca per ${tglIndo(n.tanggal)}</div><div class="big num">${rp(n.aset.total)}</div>
+      <div class="chips"><div class="chip dot-blue"><span class="nm">Kas</span><b class="num">${rp(n.aset.total_kas)}</b></div>
+      <div class="chip dot-yellow"><span class="nm">Persediaan</span><b class="num">${rp(n.aset.total_persediaan)}</b></div>
+      <div class="chip ${seimbang ? 'dot-green' : 'dot-red'}"><span class="nm">Status</span><b>${seimbang ? 'Seimbang' : 'Tidak seimbang'}</b></div></div></div>
+    <div class="card">${judul('bank', 'c-blue', 'ASET (yang dimiliki usaha)')}
+      <h3>Kas & bank</h3><ul class="list">${n.aset.kas.map((x) => kBaris(x.nama, x.jumlah)).join('')}${kTotal('Total kas', n.aset.total_kas, '')}</ul>
+      <h3>Persediaan</h3><ul class="list">${n.aset.persediaan.map((x) => kBaris(x.nama, x.jumlah)).join('') || '<li class="muted">Belum ada stok tercatat</li>'}${kTotal('Total persediaan', n.aset.total_persediaan, '')}</ul>
+      <ul class="list">${kTotal('TOTAL ASET', n.aset.total, 'pd')}</ul></div>
+    <div class="card">${judul('timbang', 'c-purple', 'KEWAJIBAN & MODAL')}
+      <h3>Kewajiban (utang)</h3><ul class="list">${kBaris('Utang', 0)}</ul>
+      <h3>Modal pemilik</h3><ul class="list">${kBaris('Modal disetor', n.ekuitas.modal)}${kTanda('Prive (diambil pribadi)', -n.ekuitas.prive)}
+        ${kTanda('Laba ditahan (akumulasi laba usaha)', n.ekuitas.laba_ditahan)}${kTanda('Nilai persediaan (bahan & kartu belum terjual)', n.ekuitas.nilai_persediaan)}
+        ${kTanda('Penyesuaian saldo & data lama', n.ekuitas.penyesuaian)}</ul>
+      <ul class="list">${kTotal('TOTAL KEWAJIBAN + MODAL', n.ekuitas.total, 'pd')}</ul></div>
+    <div class="card">${judul('laporan', 'c-yellow', 'Cara membaca')}
+      <ul class="small muted" style="padding-left:18px;margin:0">
+        <li>Pembelian bahan dicatat sebagai biaya. Bahan dan kartu yang <b>belum terpakai/terjual</b> tetap dihitung sebagai aset, dengan nilai = sisa stok × harga beli rata-rata.</li>
+        <li><b>Penyesuaian saldo & data lama</b> berasal dari penyesuaian saldo per 15 Nov dan koreksi saldo. Modal awal yang belum pernah dicatat juga masuk ke sini. Catat modal lewat Isi cepat <b>Modal masuk</b> supaya terpisah.</li>
+        <li>Harga bahan yang dipakai: ${n.harga_bahan.map((h) => esc(h.nama) + ' ' + rp(h.harga) + ' (' + esc(h.sumber) + ')').join(', ')}.</li>
+      </ul></div>
+    <button class="btn block no-print" onclick="window.print()">${ic('cetak')}Cetak / Simpan PDF</button>`;
+  pasangNavBulan('nr', () => viewNeraca(el));
 }
 
 /* ---------- Pengaturan (owner) ---------- */

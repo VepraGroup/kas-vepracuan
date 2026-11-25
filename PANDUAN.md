@@ -85,8 +85,18 @@ Yang dicatat manual di tab Bahan baku: **Reject/rusak** di luar produksi, **Hitu
 **Pertama kali:** lakukan **Hitung fisik bahan** untuk tiap bahan supaya stok awalnya benar.
 Owner bisa menambah jenis bahan (misalnya bubble wrap) dan mengubah resep per kartu di bagian bawah tab Bahan baku.
 
-### Laporan
-Pilih **Lainnya → Laporan bulanan**, lalu tekan **Cetak / Simpan PDF**. Di HP, pilih **Simpan sebagai PDF**.
+### Laporan keuangan (menu Lainnya, khusus owner)
+| Laporan | Isinya |
+|---|---|
+| **Laporan bulanan (laba rugi)** | Pemasukan dan pengeluaran usaha per kategori, laba bersih, penjualan per produk, saldo akhir, dan stok |
+| **Arus kas** | Kas awal bulan → (1) uang masuk/keluar dari usaha → (2) modal disetor & prive → (3) pindah dana & koreksi → kas akhir bulan, plus tabel per akun (awal, masuk, keluar, akhir) |
+| **Neraca** | **Aset**: kas per akun + persediaan (bahan & kartu jadi yang belum terjual, dinilai dengan harga beli rata-rata). **Kewajiban & Modal**: modal disetor, prive, laba ditahan, nilai persediaan, penyesuaian. Total keduanya selalu seimbang |
+
+Semua laporan bisa pindah bulan (‹ ›) dan dicetak atau disimpan PDF lewat tombol **Cetak / Simpan PDF** (di HP: pilih **Simpan sebagai PDF**).
+
+Supaya neraca rapi, catat **modal awal** yang pernah disetor Ahmad & Ariq lewat Isi cepat **Modal masuk**. Kalau belum dicatat, modal awal itu ikut masuk ke baris "Penyesuaian saldo & data lama".
+
+**Gaji:** pakai Isi cepat **Gaji** (kategori *Gaji Karyawan*). Gaji dihitung sebagai pengeluaran usaha, jadi mengurangi laba.
 
 ---
 

@@ -44,6 +44,8 @@ const IKON = {
   pulih: '<path d="M4 12a8 8 0 1 0 2.5-5.8L4 8.5"/><path d="M4 4v4.5h4.5"/>',
   timbang: '<path d="M12 4v16M7 20h10M5 8h14"/><path d="m5 8-3 6a3 3 0 0 0 6 0zM19 8l-3 6a3 3 0 0 0 6 0z"/>',
   petir:'<path d="M13 2.5 4.5 13.5H11l-1 8 8.5-11H12z"/>',
+  arus: '<path d="M7 4v14M3.5 14.5 7 18l3.5-3.5"/><path d="M17 20V6M13.5 9.5 17 6l3.5 3.5"/>',
+  gaji: '<rect x="3" y="5.5" width="18" height="13" rx="2.5"/><circle cx="9" cy="11" r="2.2"/><path d="M5.5 16.5a3.5 3.5 0 0 1 7 0M15 10h3.5M15 13.5h3.5"/>',
 };
 
 function ic(nama, cls) {
