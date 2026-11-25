@@ -23,7 +23,7 @@ const IKON = {
   klip: '<path d="m20 11.5-8 8a5 5 0 0 1-7-7l8.5-8.5a3.3 3.3 0 0 1 4.7 4.7l-8.5 8.5a1.7 1.7 0 0 1-2.4-2.4l7.8-7.8"/>',
   laporan: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/>',
   atur: '<path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/>',
-  keluar: '<path d="M14 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4"/><path d="m10 8-4 4 4 4M6 12h10"/>',
+  logout: '<path d="M14 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4"/><path d="m10 8-4 4 4 4M6 12h10"/>',
   cetak: '<path d="M7 9V3.5h10V9"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M7 14h10v6.5H7z"/>',
   tabel: '<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M4 9h16M4 15h16M10 3v18"/>',
   folder: '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
@@ -35,6 +35,11 @@ const IKON = {
   opname: '<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V2.5h6V4"/><path d="m9 13 2 2 4-4"/>',
   tanda: '<path d="M5 21V4"/><path d="M5 4h12l-2.5 4L17 12H5"/>',
   tukar: '<path d="M4 8h14l-3.5-3.5M20 16H6l3.5 3.5"/>',
+  masuk: '<path d="M17 7 7 17"/><path d="M16 17H7V8"/>',
+  keluar: '<path d="M7 17 17 7"/><path d="M8 7h9v9"/>',
+  laba: '<path d="m3 17 6-6 4 4 8-8"/><path d="M15 7h6v6"/>',
+  grafik: '<path d="M3 20.5h18"/><rect x="5" y="11" width="3.2" height="7" rx="1"/><rect x="10.4" y="6" width="3.2" height="12" rx="1"/><rect x="15.8" y="13" width="3.2" height="5" rx="1"/>',
+  petir: '<path d="M13 2.5 4.5 13.5H11l-1 8 8.5-11H12z"/>',
 };
 
 function ic(nama, cls) {

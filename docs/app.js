@@ -27,6 +27,10 @@ function geserBulan(ym, n) {
   const d = new Date(Number(ym.slice(0, 4)), Number(ym.slice(5, 7)) - 1 + n, 1);
   return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
 }
+const AKUN_DOT = { Bank: 'dot-blue', 'E-wallet': 'dot-green', Lynk: 'dot-yellow', Marketplace: 'dot-red', Tunai: 'dot-purple' };
+const bub = (ikon, warna) => `<span class="bub ${warna}">${ic(ikon)}</span>`;
+const judul = (ikon, warna, teks) => `<h2>${bub(ikon, warna)}${teks}</h2>`;
+const bubTx = (t) => (String(t.kategori).indexOf('Pindah Dana') === 0 ? bub('tukar', 'c-blue') : t.jenis === 'masuk' ? bub('masuk', 'c-green') : bub('keluar', 'c-red'));
 const isOwner = () => S.user && S.user.peran === 'owner';
 const bisa = (izin) => S.user && S.user.izin.indexOf(izin) >= 0;
 
@@ -161,17 +165,17 @@ function grafikSvg(data) {
   data.forEach((d, i) => {
     const x = pad + i * gw + gw / 2;
     const hm = (d.masuk / max) * (H - 40), hk = (d.keluar / max) * (H - 40);
-    bars += `<rect x="${x - bw - 1}" y="${H - 22 - hm}" width="${bw}" height="${hm}" rx="3" fill="#1f3263"><title>Masuk ${rp(d.masuk)}</title></rect>`;
-    bars += `<rect x="${x + 1}" y="${H - 22 - hk}" width="${bw}" height="${hk}" rx="3" fill="#e07a5f"><title>Keluar ${rp(d.keluar)}</title></rect>`;
+    bars += `<rect x="${x - bw - 1}" y="${H - 22 - hm}" width="${bw}" height="${hm}" rx="3" fill="#34a853"><title>Masuk ${rp(d.masuk)}</title></rect>`;
+    bars += `<rect x="${x + 1}" y="${H - 22 - hk}" width="${bw}" height="${hk}" rx="3" fill="#ea4335"><title>Keluar ${rp(d.keluar)}</title></rect>`;
     bars += `<text x="${x}" y="${H - 6}" font-size="11" text-anchor="middle" fill="#64708a">${BLN[Number(d.bulan.slice(5, 7)) - 1]}</text>`;
   });
   return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Grafik 6 bulan"><line x1="${pad}" y1="${H - 22}" x2="${W}" y2="${H - 22}" stroke="#dfe4ee"/>${bars}</svg>
-    <div class="legend"><span><i style="background:#1f3263"></i>Pemasukan</span><span><i style="background:#e07a5f"></i>Pengeluaran</span></div>`;
+    <div class="legend"><span><i style="background:#34a853"></i>Pemasukan</span><span><i style="background:#ea4335"></i>Pengeluaran</span></div>`;
 }
-function daftarKategoriHtml(list, total) {
+function daftarKategoriHtml(list, total, cls) {
   if (!list.length) return '<p class="muted small">Belum ada.</p>';
   return '<ul class="list">' + list.map((k) => `<li><div style="flex:1">${esc(k.nama)}
-    <div class="bar"><span style="width:${total ? Math.round((k.jumlah / total) * 100) : 0}%"></span></div></div>
+    <div class="bar ${cls || ''}"><span style="width:${total ? Math.round((k.jumlah / total) * 100) : 0}%"></span></div></div>
     <div class="num">${rp(k.jumlah)}</div></li>`).join('') + '</ul>';
 }
 async function viewBeranda(el) {
@@ -187,7 +191,7 @@ async function viewBeranda(el) {
     <div class="card hero">
       <div class="label">Kas sekarang (semua akun)</div>
       <div class="big num">${rp(d.kas)}</div>
-      <div class="chips">${d.saldo.map((s) => `<div class="chip">${esc(s.akun)}<b class="num">${rp(s.saldo)}</b></div>`).join('')}</div>
+      <div class="chips">${d.saldo.map((s) => `<div class="chip ${AKUN_DOT[s.akun] || 'dot-blue'}"><span class="nm">${esc(s.akun)}</span><b class="num">${rp(s.saldo)}</b></div>`).join('')}</div>
     </div>
     ${alerts}
     <div class="card">
@@ -195,23 +199,23 @@ async function viewBeranda(el) {
         <button class="btn ghost sm" id="b-prev" aria-label="Bulan sebelumnya">${ic('kiri')}</button><b>${namaBulan(d.bulan)}</b><button class="btn ghost sm" id="b-next" aria-label="Bulan berikutnya">${ic('kanan')}</button>
       </div>
       <div class="grid3">
-        <div class="stat"><div class="l">Pemasukan</div><div class="v in num">${rp(r.masuk)}</div></div>
-        <div class="stat"><div class="l">Pengeluaran</div><div class="v out num">${rp(r.keluar)}</div></div>
-        <div class="stat"><div class="l">Laba bersih</div><div class="v num ${r.laba >= 0 ? 'in' : 'out'}">${rp(r.laba)}</div></div>
+        <div class="stat st-in"><div class="l">${ic('masuk')}Pemasukan</div><div class="v num">${rp(r.masuk)}</div></div>
+        <div class="stat st-out"><div class="l">${ic('keluar')}Pengeluaran</div><div class="v num">${rp(r.keluar)}</div></div>
+        <div class="stat ${r.laba >= 0 ? 'st-laba' : 'st-rugi'}"><div class="l">${ic('laba')}Laba bersih</div><div class="v num">${rp(r.laba)}</div></div>
       </div>
       ${r.non_usaha.length ? `<p class="small muted">Tidak dihitung sebagai usaha: ${r.non_usaha.map((n) => esc(n.nama) + ' ' + rp(n.jumlah)).join(' · ')}</p>` : ''}
     </div>
-    <div class="card chart"><h2>6 bulan terakhir</h2>${grafikSvg(d.grafik)}</div>
-    <div class="card"><h2>Rincian ${namaBulan(d.bulan)}</h2>
-      <h3>Pemasukan</h3>${daftarKategoriHtml(r.per_masuk, r.masuk)}
-      <h3>Pengeluaran</h3>${daftarKategoriHtml(r.per_keluar, r.keluar)}
+    <div class="card chart">${judul('grafik', 'c-blue', '6 bulan terakhir')}${grafikSvg(d.grafik)}</div>
+    <div class="card">${judul('laporan', 'c-purple', 'Rincian ' + namaBulan(d.bulan))}
+      <h3 class="in">Pemasukan</h3>${daftarKategoriHtml(r.per_masuk, r.masuk, 'in')}
+      <h3 class="out">Pengeluaran</h3>${daftarKategoriHtml(r.per_keluar, r.keluar, 'out')}
     </div>
-    <div class="card"><h2>Lynk otomatis</h2>
+    <div class="card">${judul('segar', 'c-yellow', 'Lynk otomatis')}
       <p class="small">Order terakhir tercatat: <b>${d.lynk.order_terakhir ? tglIndo(d.lynk.order_terakhir) + ' (' + d.lynk.hari_sejak + ' hari lalu)' : '-'}</b><br>
       Pengecekan terakhir: ${run ? esc(run.waktu.replace('T', ' ')) + ' — ' + (run.ok ? ic('oke', 'in') : ic('gagal', 'out')) + esc(run.pesan) : 'belum pernah'}</p>
       <button class="btn ghost sm" id="b-lynk">Cek email Lynk sekarang</button>
     </div>
-    <div class="card"><h2>Stok kartu</h2><p>Sisa <b>${d.stok.sekarang}</b> kartu <span class="muted small">(batas peringatan ${d.stok.batas})</span></p>
+    <div class="card">${judul('kartu', 'c-red', 'Stok kartu')}<p>Sisa <b>${d.stok.sekarang}</b> kartu <span class="muted small">(batas peringatan ${d.stok.batas})</span></p>
       <a class="btn ghost sm" href="#/stok">Buka Stok</a></div>`;
   $('#b-prev').onclick = () => { S.bulan = geserBulan(S.bulan, -1); viewBeranda(el); };
   $('#b-next').onclick = () => { S.bulan = geserBulan(S.bulan, 1); viewBeranda(el); };
@@ -295,7 +299,7 @@ function formManual(el) {
   el.innerHTML = `
     ${edit ? `<div class="alert info">Mengubah transaksi ${esc(tglIndo(t.tanggal))} — ${esc(t.keterangan)}
       <button class="btn ghost sm" id="m-batal" style="margin-left:8px">Batal ubah</button></div>` : `
-    <div class="card"><h2>Isi cepat</h2><div class="quick">${ISI_CEPAT.map((q, i) => `<button data-q="${i}">${ic(q.ikon)}${q.label}</button>`).join('')}</div></div>`}
+    <div class="card">${judul('petir', 'c-yellow', 'Isi cepat')}<div class="quick">${ISI_CEPAT.map((q, i) => `<button data-q="${i}">${bub(q.ikon, q.kategori === 'Modal Masuk' ? 'c-yellow' : q.kategori.indexOf('Prive') === 0 ? 'c-purple' : q.jenis === 'masuk' ? 'c-green' : 'c-red')}${q.label}</button>`).join('')}</div></div>`}
     <div class="card">
       ${pindah ? '<p class="small muted">Ini transaksi pindah dana: hanya tanggal, jumlah, dan keterangan yang bisa diubah.</p>' : `
       <div class="seg" id="m-jenis"><button data-j="masuk">Pemasukan</button><button data-j="keluar">Pengeluaran</button></div>`}
@@ -323,6 +327,7 @@ function formManual(el) {
   const setJenis = (j, kat) => {
     jenis = j;
     $$('#m-jenis button').forEach((b) => b.classList.toggle('on', b.dataset.j === j));
+    const sb = $('#m-simpan'); if (sb) { sb.classList.toggle('go-in', j === 'masuk'); sb.classList.toggle('go-out', j === 'keluar'); }
     const sel = $('#m-kat');
     if (sel) {
       sel.innerHTML = opsiKategori(j, kat);
@@ -557,10 +562,10 @@ async function viewTransaksi(el) {
     box.innerHTML = '<p class="muted">Memuat…</p>';
     try {
       const r = await api('listTransaksi', S.filter, false);
-      box.innerHTML = `<div class="card"><p class="small muted">${r.total} transaksi · masuk <span class="in">${rp(r.masuk)}</span> · keluar <span class="out">${rp(r.keluar)}</span>${r.total > r.items.length ? ' · menampilkan ' + r.items.length + ' terbaru' : ''}</p>
-        ${r.items.length ? r.items.map((t, i) => `<div class="tx" data-i="${i}"><div><div class="t1">${esc(t.keterangan || t.kategori)}${String(t.perlu_cek).toUpperCase() === 'TRUE' ? '<span class="badge">perlu dicek</span>' : ''}</div>
+      box.innerHTML = `<div class="card"><div class="sumrow"><span class="pill c-blue">${r.total} transaksi</span><span class="pill c-green">${ic('masuk')}${rp(r.masuk)}</span><span class="pill c-red">${ic('keluar')}${rp(r.keluar)}</span></div>${r.total > r.items.length ? '<p class="small muted">Menampilkan ' + r.items.length + ' terbaru</p>' : ''}
+        ${r.items.length ? r.items.map((t, i) => `<div class="tx" data-i="${i}">${bubTx(t)}<div class="mid"><div class="t1">${esc(t.keterangan || t.kategori)}${String(t.perlu_cek).toUpperCase() === 'TRUE' ? '<span class="badge">perlu dicek</span>' : ''}</div>
           <div class="t2">${tglIndo(t.tanggal)} · ${esc(t.kategori)} · ${esc(t.akun)}${t.qty_kartu ? ' · ' + t.qty_kartu + ' kartu' : ''}</div></div>
-          <div class="amt num ${t.jenis === 'masuk' ? 'in' : 'out'}">${t.jenis === 'masuk' ? '+' : '−'}${rp(t.jumlah)}</div></div>`).join('') : '<p class="muted">Tidak ada transaksi.</p>'}</div>`;
+          <div class="amt num ${String(t.kategori).indexOf('Pindah Dana') === 0 ? 'pd' : t.jenis === 'masuk' ? 'in' : 'out'}">${t.jenis === 'masuk' ? '+' : '−'}${rp(t.jumlah)}</div></div>`).join('') : '<p class="muted">Tidak ada transaksi.</p>'}</div>`;
       $$('.tx', box).forEach((row) => { row.onclick = () => detailTx(r.items[Number(row.dataset.i)], muat); });
     } catch (e) { box.innerHTML = `<div class="alert bad">${esc(e.message)}</div>`; }
   };
@@ -618,8 +623,8 @@ async function viewStok(el, data) {
       <label class="f">Keterangan (opsional)</label><input id="s-ket">
       <p class="small muted">Penjualan dari Lynk & transaksi "Penjualan Kartu" mengurangi stok otomatis.</p>
       <button class="btn block" id="s-simpan">Simpan</button></div>
-    <div class="card"><h2>Riwayat stok</h2>${s.riwayat.map((r) => `<div class="tx" data-id="${esc(r.id)}" data-ref="${esc(r.ref_transaksi || '')}">
-      <div><div class="t1">${esc(r.keterangan)}</div><div class="t2">${tglIndo(r.tanggal)} · ${esc(r.jenis)}</div></div>
+    <div class="card">${judul('daftar', 'c-blue', 'Riwayat stok')}${s.riwayat.map((r) => `<div class="tx" data-id="${esc(r.id)}" data-ref="${esc(r.ref_transaksi || '')}">
+      ${r.jenis === 'opname' ? bub('opname', 'c-yellow') : Number(r.jumlah) >= 0 ? bub('masuk', 'c-green') : bub('keluar', 'c-red')}<div class="mid"><div class="t1">${esc(r.keterangan)}</div><div class="t2">${tglIndo(r.tanggal)} · ${esc(r.jenis)}</div></div>
       <div class="amt num ${Number(r.jumlah) >= 0 ? 'in' : 'out'}">${Number(r.jumlah) >= 0 ? '+' : ''}${r.jumlah}</div></div>`).join('') || '<p class="muted">Belum ada.</p>'}</div>`;
   $('#o-simpan').onclick = async () => {
     const v = $('#o-hitung').value.trim();
@@ -649,9 +654,9 @@ async function viewStok(el, data) {
 /* ---------- Lainnya & Laporan ---------- */
 function viewLainnya(el) {
   el.innerHTML = `<div class="card"><ul class="list">
-    <li><a href="#/laporan" class="menu">${ic('laporan')}<span>Laporan bulanan</span>${ic('kanan', 'chev')}</a></li>
-    ${isOwner() ? `<li><a href="#/pengaturan" class="menu">${ic('atur')}<span>Pengaturan</span>${ic('kanan', 'chev')}</a></li>` : ''}
-    <li><a href="#" id="l-keluar" class="menu out">${ic('keluar')}<span>Keluar</span></a></li></ul></div>
+    <li><a href="#/laporan" class="menu">${bub('laporan', 'c-blue')}<span>Laporan bulanan</span>${ic('kanan', 'chev')}</a></li>
+    ${isOwner() ? `<li><a href="#/pengaturan" class="menu">${bub('atur', 'c-yellow')}<span>Pengaturan</span>${ic('kanan', 'chev')}</a></li>` : ''}
+    <li><a href="#" id="l-keluar" class="menu out">${bub('logout', 'c-red')}<span>Keluar</span></a></li></ul></div>
     <p class="small muted">Masuk sebagai ${esc(S.user.email)} (${isOwner() ? 'owner' : 'admin'}).</p>`;
   $('#l-keluar').onclick = (e) => { e.preventDefault(); keluar(); };
 }
