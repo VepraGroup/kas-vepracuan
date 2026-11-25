@@ -301,6 +301,7 @@ function berandaAdmin(el, d) {
   let alerts = '';
   d.lynk.peringatan.forEach((p) => { alerts += `<div class="alert warn">${ic('awas')}<span>${esc(p)}</span></div>`; });
   if (d.stok.rendah) alerts += `<div class="alert bad">${ic('kartu')}<span>Stok kartu tinggal <b>${d.stok.sekarang}</b> (batas ${d.stok.batas}). Kabari owner untuk produksi.</span></div>`;
+  (d.bahan_rendah || []).forEach((b) => { alerts += `<a href="#/stok" onclick="S.stokTab='bahan'" style="text-decoration:none"><div class="alert bad">${ic('kemasan')}<span>Bahan <b>${esc(b.nama)}</b> menipis: sisa ${NF.format(b.sisa)} ${esc(b.satuan)}.</span></div></a>`; });
   if (d.perlu_cek) alerts += `<a href="#/transaksi" onclick="S.filter={perlu_cek:true}" style="text-decoration:none"><div class="alert info">${ic('tanda')}<span>Ada <b>${d.perlu_cek}</b> catatanmu yang perlu dicek.</span></div></a>`;
   const run = d.lynk.run;
   el.innerHTML = `
@@ -339,6 +340,7 @@ async function viewBeranda(el) {
   let alerts = '';
   d.lynk.peringatan.forEach((p) => { alerts += `<div class="alert warn">${ic('awas')}<span>${esc(p)}</span></div>`; });
   if (d.stok.rendah) alerts += `<div class="alert bad">${ic('kartu')}<span>Stok kartu tinggal <b>${d.stok.sekarang}</b> (batas ${d.stok.batas}). Segera produksi.</span></div>`;
+  (d.bahan_rendah || []).forEach((b) => { alerts += `<a href="#/stok" onclick="S.stokTab='bahan'" style="text-decoration:none"><div class="alert bad">${ic('kemasan')}<span>Bahan <b>${esc(b.nama)}</b> menipis: sisa ${NF.format(b.sisa)} ${esc(b.satuan)}.</span></div></a>`; });
   if (d.perlu_cek) alerts += `<a href="#/transaksi" onclick="S.filter={perlu_cek:true}" style="text-decoration:none"><div class="alert info">${ic('tanda')}<span>Ada <b>${d.perlu_cek}</b> transaksi yang perlu dicek. Ketuk untuk melihat.</span></div></a>`;
   const run = d.lynk.run;
   el.innerHTML = `
@@ -429,13 +431,24 @@ function bacaGambar(file) {
 }
 
 /* ---------- Catat ---------- */
+function tebakBahan(teks) {
+  const t = String(teks || '').toLowerCase();
+  const ada = (k) => (S.bahan || []).some((b) => b.kode === k);
+  if (/akrilik|acrylic/.test(t) && ada('akrilik')) return 'akrilik';
+  if (/nfc|ntag|chip/.test(t) && ada('nfc')) return 'nfc';
+  if (/stiker|sticker/.test(t) && ada('stiker')) return 'stiker';
+  if (/polymailer|poly mailer/.test(t) && ada('polymailer')) return 'polymailer';
+  const lain = (S.bahan || []).find((b) => t.indexOf(String(b.nama).toLowerCase()) >= 0);
+  return lain ? lain.kode : '';
+}
+const opsiBahan = (pilih) => '<option value="">— bukan bahan —</option>' + (S.bahan || []).map((b) => `<option value="${esc(b.kode)}" ${b.kode === pilih ? 'selected' : ''}>${esc(b.nama)}</option>`).join('');
 const ISI_CEPAT = [
   { ikon: 'tunai', label: 'Jual kartu tunai', jenis: 'masuk', kategori: 'Penjualan Kartu', akun: 'Tunai', ket: 'Jual kartu langsung' },
   { ikon: 'bank', label: 'Jual kartu transfer', jenis: 'masuk', kategori: 'Penjualan Kartu', akun: 'Bank', ket: 'Jual kartu langsung (transfer)' },
-  { ikon: 'chip', label: 'Beli chip NFC', jenis: 'keluar', kategori: 'Cetak Kartu & Bahan', akun: 'Bank', ket: 'Beli chip NFC' },
-  { ikon: 'akrilik', label: 'Beli akrilik', jenis: 'keluar', kategori: 'Cetak Kartu & Bahan', akun: 'Bank', ket: 'Beli akrilik' },
-  { ikon: 'stiker', label: 'Beli stiker', jenis: 'keluar', kategori: 'Cetak Kartu & Bahan', akun: 'Bank', ket: 'Beli stiker' },
-  { ikon: 'kemasan', label: 'Kemasan', jenis: 'keluar', kategori: 'Kemasan', akun: 'Bank', ket: 'Polymailer / bubble wrap' },
+  { ikon: 'chip', label: 'Beli chip NFC', jenis: 'keluar', kategori: 'Cetak Kartu & Bahan', akun: 'Bank', ket: 'Beli chip NFC', bahan: 'nfc' },
+  { ikon: 'akrilik', label: 'Beli akrilik', jenis: 'keluar', kategori: 'Cetak Kartu & Bahan', akun: 'Bank', ket: 'Beli akrilik', bahan: 'akrilik' },
+  { ikon: 'stiker', label: 'Beli stiker', jenis: 'keluar', kategori: 'Cetak Kartu & Bahan', akun: 'Bank', ket: 'Beli stiker', bahan: 'stiker' },
+  { ikon: 'kemasan', label: 'Kemasan', jenis: 'keluar', kategori: 'Kemasan', akun: 'Bank', ket: 'Polymailer / bubble wrap', bahan: 'polymailer' },
   { ikon: 'truk', label: 'Ongkir', jenis: 'keluar', kategori: 'Ongkir', akun: 'Bank', ket: 'Ongkir Biteship' },
   { ikon: 'iklan', label: 'Iklan', jenis: 'keluar', kategori: 'Iklan & Promosi', akun: 'Bank', ket: 'Iklan' },
   { ikon: 'modal', label: 'Modal masuk', jenis: 'masuk', kategori: 'Modal Masuk', akun: 'Bank', ket: 'Setor modal' },
@@ -479,6 +492,10 @@ function formManual(el) {
       <div id="m-kartu" class="row2">
         <div><label class="f">Jumlah kartu</label><input id="m-qty" inputmode="numeric" placeholder="0" value="${esc(t.qty_kartu || '')}"></div>
         <div><label class="f">Pembeli</label><input id="m-pembeli" placeholder="Nama usaha/pembeli" value="${esc(t.pembeli || '')}"></div>
+      </div>
+      <div id="m-bahan-row" class="row2">
+        <div><label class="f">Beli bahan? (stok bahan bertambah)</label><select id="m-bahan">${opsiBahan(t.bahan)}</select></div>
+        <div><label class="f">Jumlah bahan (pcs)</label><input id="m-qbahan" inputmode="decimal" placeholder="0" value="${esc(t.qty_bahan || '')}"></div>
       </div>`}
       <label class="f">Keterangan</label><textarea id="m-ket" placeholder="Contoh: Beli chip NFC 100 pcs di Shopee">${esc(t.keterangan || '')}</textarea>
       ${pindah ? '' : `<label class="f">Foto bukti (opsional)</label>
@@ -499,7 +516,11 @@ function formManual(el) {
       cekKartu();
     }
   };
-  const cekKartu = () => { const k = $('#m-kat'); if (k) $('#m-kartu').classList.toggle('hidden', k.value !== 'Penjualan Kartu'); };
+  const cekKartu = () => {
+    const k = $('#m-kat'); if (!k) return;
+    $('#m-kartu').classList.toggle('hidden', k.value !== 'Penjualan Kartu');
+    $('#m-bahan-row').classList.toggle('hidden', jenis !== 'keluar' || !(S.bahan || []).length);
+  };
   if (!pindah) {
     $$('#m-jenis button').forEach((b) => { b.onclick = () => setJenis(b.dataset.j); });
     $('#m-kat').onchange = cekKartu;
@@ -512,6 +533,7 @@ function formManual(el) {
       setJenis(q.jenis, q.kategori);
       $('#m-kat').value = q.kategori; cekKartu();
       $('#m-akun').value = q.akun;
+      if ($('#m-bahan')) $('#m-bahan').value = q.bahan || '';
       $('#m-ket').value = q.ket;
       $('#m-jml').focus();
     };
@@ -522,6 +544,10 @@ function formManual(el) {
       if (!pindah) {
         Object.assign(data, { kategori: $('#m-kat').value, akun: $('#m-akun').value });
         if (data.kategori === 'Penjualan Kartu') { data.qty_kartu = angka($('#m-qty').value); data.pembeli = $('#m-pembeli').value; }
+        if (jenis === 'keluar' && $('#m-bahan').value) {
+          data.bahan = $('#m-bahan').value; data.qty_bahan = $('#m-qbahan').value.replace(',', '.');
+          if (!(Number(data.qty_bahan) > 0)) throw new Error('Isi jumlah bahan (pcs) yang dibeli, atau pilih "bukan bahan".');
+        }
         if (edit) { data.produk = t.produk; data.harga_barang = t.harga_barang; data.ongkir = t.ongkir; data.biaya_lynk = t.biaya_lynk; if (data.kategori !== 'Penjualan Kartu') data.pembeli = t.pembeli; }
         const f = $('#m-foto').files[0];
         if (f) {
@@ -584,7 +610,8 @@ function isiFormNota(el, h, buktiUrl) {
     <input class="it-nama" value="${esc(it.nama)}" placeholder="Nama barang">
     <div class="row2"><div><label class="f">Jumlah</label><input class="it-qty" inputmode="numeric" value="${it.qty}"></div>
       <div><label class="f">Subtotal (Rp)</label><input class="it-sub rupiah num" inputmode="numeric" value="${fmtInput(it.subtotal)}"></div></div>
-    <label class="f">Kategori</label><select class="it-kat">${opsiKategori('keluar', it.kategori)}</select></div>`).join('');
+    <div class="row2"><div><label class="f">Kategori</label><select class="it-kat">${opsiKategori('keluar', it.kategori)}</select></div>
+      <div><label class="f">Masuk stok bahan</label><select class="it-bahan">${opsiBahan(tebakBahan(it.nama))}</select></div></div></div>`).join('');
   pasangRupiah(el);
   const hitung = () => {
     const sub = $$('.it-sub', wrap).reduce((a, x) => a + angka(x.value), 0);
@@ -600,27 +627,29 @@ function isiFormNota(el, h, buktiUrl) {
     try {
       const tgl = $('#n-tgl').value, akunV = $('#n-akun').value, toko = $('#n-toko').value.trim();
       const rows = $$('.item-row', wrap).map((r) => ({ nama: $('.it-nama', r).value.trim(), qty: angka($('.it-qty', r).value),
-        sub: angka($('.it-sub', r).value), kat: $('.it-kat', r).value })).filter((r) => r.sub > 0);
+        sub: angka($('.it-sub', r).value), kat: $('.it-kat', r).value, bahan: $('.it-bahan', r).value })).filter((r) => r.sub > 0);
       const sumSub = rows.reduce((a, r) => a + r.sub, 0);
       const ongkir = angka($('#n-ongkir').value), diskon = angka($('#n-diskon').value);
       const total = angka($('#n-total').value) || (sumSub + ongkir - diskon);
       if (!(total > 0)) throw new Error('Total masih Rp0. Isi jumlahnya dulu.');
       const label = (r) => r.nama + (r.qty > 1 ? ' (' + r.qty + ' pcs)' : '') + (toko ? ' – ' + toko : '');
       let out = [];
-      if ($('#n-per').checked && rows.length) {
+      // Lebih dari satu bahan dalam satu nota → wajib per barang supaya stok tiap bahan benar.
+      if (($('#n-per').checked || rows.filter((r) => r.bahan).length > 1) && rows.length) {
         // Diskon dibagi rata sesuai proporsi; ongkir jadi baris sendiri.
         const faktor = sumSub ? Math.max(0, (total - ongkir) / sumSub) : 1;
         let sisa = total;
         rows.forEach((r, i) => {
           const j = i === rows.length - 1 && !ongkir ? sisa : Math.round(r.sub * faktor);
           sisa -= j;
-          out.push({ jenis: 'keluar', tanggal: tgl, akun: akunV, kategori: r.kat, jumlah: j, keterangan: label(r) });
+          out.push({ jenis: 'keluar', tanggal: tgl, akun: akunV, kategori: r.kat, jumlah: j, keterangan: label(r), bahan: r.bahan, qty_bahan: r.bahan ? r.qty : '' });
         });
         if (ongkir) out.push({ jenis: 'keluar', tanggal: tgl, akun: akunV, kategori: 'Ongkir', jumlah: sisa, keterangan: 'Ongkir/biaya' + (toko ? ' – ' + toko : '') });
       } else {
         const kat = rows[0] ? rows[0].kat : 'Pengeluaran Lain';
         out = [{ jenis: 'keluar', tanggal: tgl, akun: akunV, kategori: kat, jumlah: total,
-          keterangan: (rows.map(label).join(', ') || toko || 'Pembelian').slice(0, 480) }];
+          keterangan: (rows.map(label).join(', ') || toko || 'Pembelian').slice(0, 480),
+          bahan: (rows.find((r) => r.bahan) || {}).bahan || '', qty_bahan: (rows.find((r) => r.bahan) || {}).qty || '' }];
       }
       out = out.filter((o) => o.jumlah > 0);
       await api('simpanBanyak', { items: out, bukti_url: buktiUrl, sumber: 'foto-nota' }, 'Menyimpan…');
@@ -772,7 +801,7 @@ async function pulihkanTx(t, muatUlang) {
 function detailTx(t, muatUlang, terhapus) {
   const kv = [['Tanggal', tglIndo(t.tanggal)], ['Jenis', t.jenis === 'masuk' ? 'Pemasukan' : 'Pengeluaran'], ['Jumlah', rp(t.jumlah)],
     ['Kategori', t.kategori], ['Akun', t.akun], ['Keterangan', t.keterangan], ['Pembeli', t.pembeli], ['Produk', t.produk],
-    ['Jumlah kartu', t.qty_kartu], ['Harga barang', t.harga_barang ? rp(t.harga_barang) : ''], ['Ongkir', t.ongkir ? rp(t.ongkir) : ''],
+    ['Jumlah kartu', t.qty_kartu], ['Bahan masuk stok', t.bahan ? ((S.bahan || []).find((b) => b.kode === t.bahan) || { nama: t.bahan }).nama + ' ' + t.qty_bahan : ''], ['Harga barang', t.harga_barang ? rp(t.harga_barang) : ''], ['Ongkir', t.ongkir ? rp(t.ongkir) : ''],
     ['Biaya Lynk', t.biaya_lynk ? rp(t.biaya_lynk) : ''], ['Sumber', t.sumber], ['Dicatat oleh', t.dibuat_oleh + ' · ' + String(t.dibuat_pada).replace('T', ' ')],
     ['Diubah', t.diubah_oleh ? t.diubah_oleh + ' · ' + String(t.diubah_pada).replace('T', ' ') : ''],
     ['Dihapus', t.dihapus_oleh ? t.dihapus_oleh + ' · ' + String(t.dihapus_pada).replace('T', ' ') : '']].filter((x) => x[1] !== '' && x[1] != null);
@@ -794,53 +823,170 @@ function detailTx(t, muatUlang, terhapus) {
 }
 
 /* ---------- Stok ---------- */
-const JENIS_STOK = { produksi: 'Produksi (+)', titip_kembali: 'Titipan kembali (+)', masuk_lain: 'Masuk lain (+)',
-  cacat: 'Cacat (−)', tes: 'Dipakai tes (−)', titip: 'Dititip ke orang (−)', keluar_lain: 'Keluar lain (−)' };
-async function viewStok(el, data) {
+const JENIS_STOK = { produksi: 'Produksi kartu (+)', titip_kembali: 'Titipan kembali (+)', masuk_lain: 'Masuk lain (+)',
+  cacat: 'Kartu jadi reject / cacat (−)', tes: 'Dipakai tes (−)', titip: 'Dititip ke orang (−)', keluar_lain: 'Keluar lain (−)' };
+const JENIS_BAHAN = { beli: 'Beli / masuk (+)', tambah: 'Masuk lain (+)', reject: 'Reject / rusak (−)', pakai: 'Pakai lain (−)' };
+const WARNA_BAHAN = ['c-blue', 'c-green', 'c-yellow', 'c-purple', 'c-red'];
+const IKON_BAHAN = { akrilik: 'akrilik', nfc: 'chip', stiker: 'stiker', polymailer: 'kemasan' };
+const angkaB = (n) => NF.format(Number(n) || 0);
+
+async function viewStok(el) {
+  S.stokTab = S.stokTab || 'kartu';
+  el.innerHTML = `<div class="seg" id="st-tabs"><button data-t="kartu">${ic('kartu')} Kartu jadi</button><button data-t="bahan">${ic('kemasan')} Bahan baku</button></div><div id="st-body"></div>`;
+  $$('#st-tabs button').forEach((b) => {
+    b.classList.toggle('on', b.dataset.t === S.stokTab);
+    b.onclick = () => { S.stokTab = b.dataset.t; viewStok(el); };
+  });
+  const body = $('#st-body');
+  if (S.stokTab === 'bahan') return viewBahan(body);
+  return viewKartu(body);
+}
+
+async function viewKartu(el, data) {
   const s = data || await api('getStok', {});
   const perluOpname = !s.opname_terakhir;
+  const resep = (S.bahan || []).filter((b) => b.per_kartu > 0);
   el.innerHTML = `
-    <div class="card hero"><div class="label">Stok kartu sekarang</div><div class="big num">${s.sekarang} kartu</div>
+    <div class="card hero"><div class="label">Stok kartu jadi sekarang</div><div class="big num">${s.sekarang} kartu</div>
       <div class="small">Batas peringatan: ${s.batas}${s.opname_terakhir ? ' · Opname terakhir ' + tglIndo(s.opname_terakhir) : ''}</div></div>
     ${s.rendah ? `<div class="alert bad">${ic('kartu')}<span>Stok menipis (di bawah ${s.batas}). Segera produksi.</span></div>` : ''}
     ${perluOpname ? `<div class="alert warn">${ic('opname')}<span>Data stok lama terakhir diperbarui 28 Okt 2026. Tolong hitung fisik kartu yang ada sekarang, lalu isi di <b>Stok opname</b> di bawah supaya angkanya benar.</span></div>` : ''}
-    <div class="card"><h2>Stok opname (hitung fisik)</h2>
+    <div class="card">${judul('catat', 'c-green', 'Catat perubahan stok kartu')}
+      <label class="f">Jenis</label><select id="s-jenis">${Object.keys(JENIS_STOK).map((k) => `<option value="${k}">${JENIS_STOK[k]}</option>`).join('')}</select>
+      <div class="row2"><div><label class="f">Jumlah kartu</label><input id="s-jml" inputmode="numeric" placeholder="0"></div>
+        <div><label class="f">Tanggal</label><input type="date" id="s-tgl" value="${hariIni()}"></div></div>
+      <div id="s-produksi">
+        ${resep.length ? `<div class="alert info small" style="margin-top:12px">${ic('kemasan')}<span>Produksi otomatis memakai bahan: <b>${resep.map((b) => (b.per_kartu === 1 ? '' : b.per_kartu + ' ') + esc(b.nama)).join(' + ')}</b> per kartu.</span></div>` : ''}
+        <label class="f">Reject saat produksi (opsional, bahan yang rusak/gagal)</label>
+        <div class="reject-grid">${(S.bahan || []).filter((b) => b.per_kartu > 0).map((b) => `<div><span class="small muted">${esc(b.nama)}</span><input class="rj" data-kode="${esc(b.kode)}" inputmode="numeric" placeholder="0"></div>`).join('')}</div>
+      </div>
+      <label class="f">Keterangan (opsional)</label><input id="s-ket">
+      <p class="small muted">Penjualan dari Lynk & transaksi "Penjualan Kartu" mengurangi stok kartu otomatis.</p>
+      <button class="btn block" id="s-simpan">Simpan</button></div>
+    <div class="card">${judul('opname', 'c-yellow', 'Stok opname kartu (hitung fisik)')}
       <p class="small muted">Isi jumlah kartu jadi yang benar-benar ada. Sistem mencatat selisihnya otomatis.</p>
       <div class="row2"><div><label class="f">Jumlah kartu di tangan</label><input id="o-hitung" inputmode="numeric" placeholder="0"></div>
         <div><label class="f">Tanggal</label><input type="date" id="o-tgl" value="${hariIni()}"></div></div>
       <button class="btn block" id="o-simpan">Simpan hasil hitung</button></div>
-    <div class="card"><h2>Catat perubahan stok</h2>
-      <label class="f">Jenis</label><select id="s-jenis">${Object.keys(JENIS_STOK).map((k) => `<option value="${k}">${JENIS_STOK[k]}</option>`).join('')}</select>
-      <div class="row2"><div><label class="f">Jumlah kartu</label><input id="s-jml" inputmode="numeric" placeholder="0"></div>
-        <div><label class="f">Tanggal</label><input type="date" id="s-tgl" value="${hariIni()}"></div></div>
-      <label class="f">Keterangan (opsional)</label><input id="s-ket">
-      <p class="small muted">Penjualan dari Lynk & transaksi "Penjualan Kartu" mengurangi stok otomatis.</p>
-      <button class="btn block" id="s-simpan">Simpan</button></div>
-    <div class="card">${judul('daftar', 'c-blue', 'Riwayat stok')}${s.riwayat.map((r) => `<div class="tx" data-id="${esc(r.id)}" data-ref="${esc(r.ref_transaksi || '')}">
-      ${r.jenis === 'opname' ? bub('opname', 'c-yellow') : Number(r.jumlah) >= 0 ? bub('masuk', 'c-green') : bub('keluar', 'c-red')}<div class="mid"><div class="t1">${esc(r.keterangan)}</div><div class="t2">${tglIndo(r.tanggal)} · ${esc(r.jenis)}</div></div>
+    <div class="card">${judul('daftar', 'c-blue', 'Riwayat stok kartu')}${s.riwayat.map((r) => `<div class="tx" data-id="${esc(r.id)}" data-ref="${esc(r.ref_transaksi || '')}">
+      ${r.jenis === 'opname' ? bub('opname', 'c-yellow') : Number(r.jumlah) >= 0 ? bub('masuk', 'c-green') : bub('keluar', 'c-red')}<div class="mid"><div class="t1">${esc(r.keterangan)}</div><div class="t2">${tglIndo(r.tanggal)} · ${esc(JENIS_STOK[r.jenis] || r.jenis)}</div></div>
       <div class="amt num ${Number(r.jumlah) >= 0 ? 'in' : 'out'}">${Number(r.jumlah) >= 0 ? '+' : ''}${r.jumlah}</div></div>`).join('') || '<p class="muted">Belum ada.</p>'}</div>`;
+  const cekJenis = () => $('#s-produksi').classList.toggle('hidden', $('#s-jenis').value !== 'produksi');
+  $('#s-jenis').onchange = cekJenis; cekJenis();
   $('#o-simpan').onclick = async () => {
     const v = $('#o-hitung').value.trim();
     if (v === '') return toast('Isi jumlah kartu hasil hitung.', true);
-    const ok = await konfirmasi('Simpan stok opname?', `Stok akan diset menjadi ${angka(v)} kartu (sekarang tercatat ${s.sekarang}).`, 'Simpan');
+    const ok = await konfirmasi('Simpan stok opname?', `Stok kartu akan diset menjadi ${angka(v)} kartu (sekarang tercatat ${s.sekarang}).`, 'Simpan');
     if (!ok) return;
-    try { const r = await api('opname', { hitung: angka(v), tanggal: $('#o-tgl').value }, 'Menyimpan…'); toast('Stok opname tersimpan'); viewStok(el, r); } catch (e) { toast(e.message, true); }
+    try { const r = await api('opname', { hitung: angka(v), tanggal: $('#o-tgl').value }, 'Menyimpan…'); toast('Stok opname tersimpan'); viewKartu(el, r); } catch (e) { toast(e.message, true); }
   };
   $('#s-simpan').onclick = async () => {
     try {
-      const r = await api('tambahStok', { jenis: $('#s-jenis').value, jumlah: angka($('#s-jml').value), tanggal: $('#s-tgl').value, keterangan: $('#s-ket').value }, 'Menyimpan…');
-      toast('Stok tersimpan'); viewStok(el, r);
+      const reject = {};
+      $$('.rj', el).forEach((i) => { if (angka(i.value) > 0) reject[i.dataset.kode] = angka(i.value); });
+      const jenis = $('#s-jenis').value;
+      const r = await api('tambahStok', { jenis, jumlah: angka($('#s-jml').value), tanggal: $('#s-tgl').value, keterangan: $('#s-ket').value,
+        reject: jenis === 'produksi' ? reject : {} }, 'Menyimpan…');
+      toast(jenis === 'produksi' ? 'Produksi tersimpan, bahan otomatis terpakai' : 'Stok tersimpan'); viewKartu(el, r);
     } catch (e) { toast(e.message, true); }
   };
   if (bisa('hapus')) {
     $$('.tx[data-id]', el).forEach((row) => {
       row.onclick = async () => {
         if (row.dataset.ref) return toast('Catatan ini dari transaksi penjualan. Ubah lewat menu Transaksi.');
-        const ok = await konfirmasi('Hapus catatan stok?', $('.t1', row).textContent, 'Ya, hapus', true);
+        const ok = await konfirmasi('Hapus catatan stok?', $('.t1', row).textContent + ' (kalau ini produksi, pemakaian bahannya ikut dibatalkan)', 'Ya, hapus', true);
         if (!ok) return;
-        try { const r = await api('hapusStok', { id: row.dataset.id }, 'Menghapus…'); toast('Dihapus'); viewStok(el, r); } catch (e) { toast(e.message, true); }
+        try { const r = await api('hapusStok', { id: row.dataset.id }, 'Menghapus…'); toast('Dihapus'); viewKartu(el, r); } catch (e) { toast(e.message, true); }
       };
     });
+  }
+}
+
+async function viewBahan(el, data) {
+  const d = data || await api('getBahan', {});
+  const opsi = d.bahan.map((b) => `<option value="${esc(b.kode)}">${esc(b.nama)}</option>`).join('');
+  el.innerHTML = `
+    <div class="card hero"><div class="label">Dengan bahan yang ada, bisa produksi</div>
+      <div class="big num">± ${d.bisa_produksi} kartu</div>
+      <div class="small">${d.pembatas ? 'Paling cepat habis: <b>' + esc(d.pembatas) + '</b>' : 'Atur resep bahan per kartu di bawah.'}</div></div>
+    ${d.bahan.filter((b) => b.rendah).map((b) => `<div class="alert bad">${ic('awas')}<span><b>${esc(b.nama)}</b> menipis: sisa ${angkaB(b.sisa)} ${esc(b.satuan)} (batas ${b.batas}).</span></div>`).join('')}
+    <div class="bahan-grid">${d.bahan.map((b, i) => `
+      <div class="card bahan-card">
+        <div class="bh-top">${bub(IKON_BAHAN[b.kode] || 'kemasan', WARNA_BAHAN[i % WARNA_BAHAN.length])}<div><b>${esc(b.nama)}</b><div class="small muted">${b.per_kartu > 0 ? b.per_kartu + ' ' + esc(b.satuan) + ' per kartu' : 'tidak dipakai otomatis'}</div></div></div>
+        <div class="bh-sisa ${b.rendah ? 'out' : ''}"><span class="num">${angkaB(b.sisa)}</span> <small>${esc(b.satuan)}</small></div>
+        <div class="bar ${b.rendah ? 'out' : 'in'}"><span style="width:${Math.min(100, b.batas ? (b.sisa / (b.batas * 3)) * 100 : 100)}%"></span></div>
+        <div class="bh-bulan"><span class="in">+${angkaB(b.beli_bulan)} beli</span><span>−${angkaB(b.pakai_bulan)} pakai</span><span class="out">−${angkaB(b.reject_bulan)} reject</span></div>
+        <div class="small muted">bulan ini</div>
+      </div>`).join('')}</div>
+    <div class="alert info small">${ic('petir')}<span><b>Otomatis:</b> beli bahan lewat <b>Catat</b> (pilih bahan + jumlah pcs) → stok bahan bertambah. Catat <b>Produksi kartu</b> di tab Kartu jadi → bahan terpakai sendiri. Jadi di sini cukup untuk reject di luar produksi, koreksi, dan hitung fisik.</span></div>
+    <div class="card">${judul('catat', 'c-green', 'Catat bahan')}
+      <div class="row2"><div><label class="f">Bahan</label><select id="b-bahan">${opsi}</select></div>
+        <div><label class="f">Jenis</label><select id="b-jenis">${Object.keys(JENIS_BAHAN).map((k) => `<option value="${k}" ${k === 'reject' ? 'selected' : ''}>${JENIS_BAHAN[k]}</option>`).join('')}</select></div></div>
+      <div class="row2"><div><label class="f">Jumlah</label><input id="b-jml" inputmode="decimal" placeholder="0"></div>
+        <div><label class="f">Tanggal</label><input type="date" id="b-tgl" value="${hariIni()}"></div></div>
+      <label class="f">Keterangan (opsional)</label><input id="b-ket" placeholder="Contoh: stiker gagal cetak">
+      <p class="small muted">Untuk pembelian yang <b>dibayar</b>, catat lewat menu Catat supaya uangnya juga tercatat (stok bahan ikut bertambah). Jangan dicatat dua kali.</p>
+      <button class="btn block" id="b-simpan">Simpan</button></div>
+    <div class="card">${judul('opname', 'c-yellow', 'Hitung fisik bahan (opname)')}
+      <p class="small muted">Hitung bahan yang benar-benar ada, isi angkanya. Sistem menyesuaikan sisanya.</p>
+      <div class="row2"><div><label class="f">Bahan</label><select id="bo-bahan">${opsi}</select></div>
+        <div><label class="f">Jumlah di tangan</label><input id="bo-hitung" inputmode="decimal" placeholder="0"></div></div>
+      <button class="btn block" id="bo-simpan">Simpan hasil hitung</button></div>
+    <div class="card">${judul('daftar', 'c-blue', 'Riwayat bahan')}${d.riwayat.map((r) => `<div class="tx" data-id="${esc(r.id)}" data-ref="${esc(r.ref || '')}">
+      ${r.jenis === 'opname' ? bub('opname', 'c-yellow') : r.jenis === 'reject' ? bub('sampah', 'c-red') : Number(r.jumlah) >= 0 ? bub('masuk', 'c-green') : bub('keluar', 'c-purple')}
+      <div class="mid"><div class="t1">${esc(r.nama_bahan)} — ${esc(r.keterangan)}</div><div class="t2">${tglIndo(r.tanggal)} · ${esc(r.jenis)}</div></div>
+      <div class="amt num ${Number(r.jumlah) >= 0 ? 'in' : 'out'}">${Number(r.jumlah) >= 0 ? '+' : ''}${angkaB(r.jumlah)}</div></div>`).join('') || '<p class="muted">Belum ada catatan bahan. Mulai dengan <b>Hitung fisik bahan</b> di atas untuk mengisi stok awal.</p>'}</div>
+    ${isOwner() ? `<div class="card">${judul('atur', 'c-purple', 'Jenis bahan & resep per kartu')}
+      <ul class="list">${d.bahan.map((b) => `<li><span>${esc(b.nama)}<br><span class="small muted">${b.per_kartu} ${esc(b.satuan)}/kartu · batas ${b.batas}</span></span><button class="btn ghost sm" data-ubah-bahan="${esc(b.kode)}">${ic('pensil')}Ubah</button></li>`).join('')}</ul>
+      <h3>Tambah / ubah bahan</h3>
+      <input id="m-nama" placeholder="Nama bahan, contoh: Bubble wrap">
+      <div class="row2" style="grid-template-columns:1fr 1fr 1fr"><div><label class="f">Per kartu</label><input id="m-per" inputmode="decimal" placeholder="0"></div>
+        <div><label class="f">Batas</label><input id="m-batas" inputmode="numeric" placeholder="10"></div>
+        <div><label class="f">Satuan</label><input id="m-satuan" placeholder="pcs"></div></div>
+      <input type="hidden" id="m-kode">
+      <p class="small muted">"Per kartu" = berapa yang terpakai otomatis tiap 1 kartu diproduksi. Isi 0 kalau tidak dipakai otomatis (misalnya polymailer).</p>
+      <button class="btn block" id="m-simpan">Simpan bahan</button></div>` : ''}`;
+  $('#b-simpan').onclick = async () => {
+    try {
+      const r = await api('catatBahan', { bahan: $('#b-bahan').value, jenis: $('#b-jenis').value, jumlah: $('#b-jml').value.replace(',', '.'),
+        tanggal: $('#b-tgl').value, keterangan: $('#b-ket').value }, 'Menyimpan…');
+      toast('Catatan bahan tersimpan'); viewBahan(el, r);
+    } catch (e) { toast(e.message, true); }
+  };
+  $('#bo-simpan').onclick = async () => {
+    const v = $('#bo-hitung').value.trim();
+    if (v === '') return toast('Isi jumlah hasil hitung.', true);
+    const b = d.bahan.find((x) => x.kode === $('#bo-bahan').value);
+    const ok = await konfirmasi('Simpan hitung fisik?', `${b.nama} akan diset menjadi ${v} ${b.satuan} (sekarang tercatat ${angkaB(b.sisa)}).`, 'Simpan');
+    if (!ok) return;
+    try { const r = await api('opnameBahan', { bahan: b.kode, hitung: v.replace(',', '.') }, 'Menyimpan…'); toast('Hitung fisik tersimpan'); viewBahan(el, r); } catch (e) { toast(e.message, true); }
+  };
+  if (bisa('hapus')) {
+    $$('.tx[data-id]', el).forEach((row) => {
+      row.onclick = async () => {
+        if (row.dataset.ref) return toast('Ini otomatis dari pembelian/produksi. Ubah lewat transaksinya atau riwayat stok kartu.');
+        const ok = await konfirmasi('Hapus catatan bahan?', $('.t1', row).textContent, 'Ya, hapus', true);
+        if (!ok) return;
+        try { const r = await api('hapusStokBahan', { id: row.dataset.id }, 'Menghapus…'); toast('Dihapus'); viewBahan(el, r); } catch (e) { toast(e.message, true); }
+      };
+    });
+  }
+  if (isOwner()) {
+    $$('[data-ubah-bahan]', el).forEach((btn) => {
+      btn.onclick = () => {
+        const b = d.bahan.find((x) => x.kode === btn.dataset.ubahBahan);
+        $('#m-kode').value = b.kode; $('#m-nama').value = b.nama; $('#m-per').value = b.per_kartu; $('#m-batas').value = b.batas; $('#m-satuan').value = b.satuan;
+        $('#m-nama').scrollIntoView({ behavior: 'smooth', block: 'center' });
+      };
+    });
+    $('#m-simpan').onclick = async () => {
+      try {
+        const r = await api('simpanBahan', { kode: $('#m-kode').value, nama: $('#m-nama').value, per_kartu: $('#m-per').value.replace(',', '.'),
+          batas: $('#m-batas').value, satuan: $('#m-satuan').value || 'pcs' }, 'Menyimpan…');
+        const b = await api('me', {}, false); Object.assign(S, b);
+        toast('Bahan tersimpan'); viewBahan(el, r);
+      } catch (e) { toast(e.message, true); }
+    };
   }
 }
 

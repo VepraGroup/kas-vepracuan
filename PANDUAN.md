@@ -71,6 +71,20 @@ Owner juga bisa mengedit langsung di Google Sheet (tab **Transaksi**, misalnya k
 - **Catat perubahan stok**: produksi (+), cacat (−), dipakai tes (−), dititip (−), titipan kembali (+).
 - Order kartu dari Lynk dan transaksi Penjualan Kartu mengurangi stok otomatis.
 
+### Stok bahan baku (menu Stok → tab Bahan baku)
+Menampilkan sisa **akrilik, chip NFC, stiker, polymailer**, berapa yang dibeli, dipakai, dan reject bulan ini, serta **bisa produksi berapa kartu lagi**.
+
+| Kejadian | Yang terjadi otomatis |
+|---|---|
+| Beli bahan lewat **Catat** (pilih "Beli bahan?" dan isi jumlah pcs), Isi cepat (Beli chip NFC/akrilik/stiker), atau **Foto Nota** (kolom "Masuk stok bahan" per barang) | Stok bahan **bertambah** |
+| **Stok → Kartu jadi → Produksi kartu** sebanyak N | Bahan **terpakai** sesuai resep (default 1 akrilik + 1 NFC + 1 stiker per kartu), stok kartu jadi bertambah N |
+| Ada bahan yang gagal saat produksi | Isi kolom **Reject saat produksi** di form produksi |
+| Transaksi pembelian atau produksi diubah/dihapus | Stok bahan ikut menyesuaikan |
+
+Yang dicatat manual di tab Bahan baku: **Reject/rusak** di luar produksi, **Hitung fisik bahan (opname)**, dan bahan masuk yang tidak dibayar.
+**Pertama kali:** lakukan **Hitung fisik bahan** untuk tiap bahan supaya stok awalnya benar.
+Owner bisa menambah jenis bahan (misalnya bubble wrap) dan mengubah resep per kartu di bagian bawah tab Bahan baku.
+
 ### Laporan
 Pilih **Lainnya → Laporan bulanan**, lalu tekan **Cetak / Simpan PDF**. Di HP, pilih **Simpan sebagai PDF**.
 

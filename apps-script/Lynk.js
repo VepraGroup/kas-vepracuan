@@ -110,6 +110,7 @@ function syncLynk_(opt) {
   const lock = LockService.getScriptLock();
   if (!lock.tryLock(30000)) throw userErr_('Pencatatan Lynk sedang berjalan. Coba lagi sebentar lagi.');
   try {
+    pastikanSkema_();
     const mulai = getSetting_('lynk_mulai');
     const tarikMulai = getSetting_('lynk_tarik_mulai');
     let dari = opt.dari && /^\d{4}-\d{2}-\d{2}$/.test(opt.dari) ? opt.dari : minusHari_(today_(), 3);

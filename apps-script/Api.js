@@ -19,6 +19,11 @@ function routes_() { return {
   pindahDana:      { izin: 'keuangan',   fn: pindahDana_, tulis: true },
   hapusTransaksi:  { izin: 'hapus',      fn: hapusTransaksi_, tulis: true },
   getStok:         { izin: 'lihat',      fn: getStok_ },
+  getBahan:        { izin: 'lihat',      fn: getBahan_ },
+  catatBahan:      { izin: 'tambah',     fn: catatBahan_, tulis: true },
+  opnameBahan:     { izin: 'tambah',     fn: opnameBahan_, tulis: true },
+  hapusStokBahan:  { izin: 'hapus',      fn: hapusStokBahan_, tulis: true },
+  simpanBahan:     { izin: 'pengaturan', fn: simpanBahan_, tulis: true },
   tambahStok:      { izin: 'tambah',     fn: tambahStok_, tulis: true },
   opname:          { izin: 'tambah',     fn: opname_, tulis: true },
   hapusStok:       { izin: 'hapus',      fn: hapusStok_, tulis: true },
@@ -65,6 +70,7 @@ function route_(req) {
   if (req.action === 'logout') return logout_(req.token);
   const user = requireUser_(req.token);
   USER_SAAT_INI_ = user;
+  pastikanSkema_();
   const all = routes_();
   const r = Object.prototype.hasOwnProperty.call(all, req.action) ? all[req.action] : null;
   if (!r) throw userErr_('Perintah tidak dikenal. Coba muat ulang halaman.');
@@ -90,6 +96,7 @@ function bootstrap_(u) {
     akun: readAll_('Akun').filter(function (a) { return String(a.aktif).toUpperCase() !== 'FALSE'; })
       .map(function (a) { return a.nama; }),
     batas_stok: num_(getSetting_('batas_stok')),
+    bahan: bahanAktif_().map(function (b) { return { kode: b.kode, nama: b.nama, satuan: b.satuan || 'pcs', per_kartu: num_(b.per_kartu) }; }),
     punya_gemini: !!prop_('GEMINI_API_KEY'),
   };
 }

@@ -300,3 +300,20 @@ button.chip:active { background: rgba(255, 255, 255, .22); }
 .hint-koreksi { display: flex; align-items: center; gap: 6px; font-size: 12px; opacity: .8; margin-top: 10px; }
 .hint-koreksi .i { width: 15px; height: 15px; }
 .koreksi-info { background: var(--navy-soft); border-radius: 12px; padding: 10px 12px; font-size: 14px; display: flex; justify-content: space-between; gap: 10px; margin-top: 10px; }
+
+/* Stok bahan baku */
+#st-tabs button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+#st-tabs button .i { width: 18px; height: 18px; }
+#st-tabs button.on[data-t="kartu"] { background: var(--amber); }
+#st-tabs button.on[data-t="bahan"] { background: var(--purple); }
+.bahan-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 4px; }
+.bahan-card { margin-bottom: 0; padding: 14px; }
+.bh-top { display: flex; align-items: center; gap: 10px; }
+.bh-top .bub { width: 34px; height: 34px; }
+.bh-top b { font-size: 15px; }
+.bh-sisa { font-size: 28px; font-weight: 800; margin: 10px 0 2px; letter-spacing: -.5px; }
+.bh-sisa small { font-size: 13px; font-weight: 600; color: var(--muted); }
+.bh-bulan { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 12px; font-weight: 700; margin-top: 8px; color: var(--purple); }
+.reject-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.reject-grid input { padding: 10px; }
+@media (max-width: 360px) { .bahan-grid { grid-template-columns: 1fr; } }

@@ -89,6 +89,7 @@ function dashboardAdmin_(u) {
     lynk: { order_terakhir: lynk.order_terakhir, hari_sejak: lynk.hari_sejak, peringatan: lynk.peringatan,
       run: lynk.run ? { ok: lynk.run.ok, waktu: lynk.run.waktu, pesan: lynk.run.pesan } : null },
     stok: { sekarang: stok, batas: batas, rendah: stok < batas },
+    bahan_rendah: bahanRendah_(),
     catatan_hari_ini: milikku.filter(function (t) { return t.tanggal === hariIni; }).length,
     catatan_bulan_ini: milikku.filter(function (t) { return String(t.tanggal).slice(0, 7) === hariIni.slice(0, 7); }).length,
     perlu_cek: milikku.filter(function (t) { return isTrue_(t.perlu_cek); }).length,
@@ -117,6 +118,7 @@ function dashboard_(d) {
     grafik: grafik,
     lynk: statusLynk_(tx),
     stok: { sekarang: stok, batas: batas, rendah: stok < batas },
+    bahan_rendah: bahanRendah_(),
     perlu_cek: tx.filter(function (t) { return isTrue_(t.perlu_cek); }).length,
   };
 }

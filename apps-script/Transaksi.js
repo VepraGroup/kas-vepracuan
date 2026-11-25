@@ -36,6 +36,8 @@ function validTx_(d, u) {
   }
   if (!akunSet_()[d.akun]) throw userErr_('Akun "' + (d.akun || '') + '" tidak dikenal.');
   const qty = Math.max(0, Math.round(num_(d.qty_kartu)));
+  const bahan = jenis === 'keluar' && d.bahan && bahanMap_()[d.bahan] ? String(d.bahan) : '';
+  const qtyBahan = bahan ? Math.max(0, Math.round(num_(d.qty_bahan) * 100) / 100) : 0;
   return {
     jenis: jenis, tanggal: tanggal, kategori: d.kategori, akun: d.akun, jumlah: jumlah,
     keterangan: String(d.keterangan || '').trim().slice(0, 500),
@@ -46,6 +48,8 @@ function validTx_(d, u) {
     ongkir: num_(d.ongkir) || '',
     biaya_lynk: num_(d.biaya_lynk) || '',
     bukti_url: String(d.bukti_url || '').trim(),
+    bahan: bahan,
+    qty_bahan: qtyBahan || '',
   };
 }
 
@@ -166,6 +170,7 @@ function hapusTransaksi_(d, u) {
  * Data lama (sumber "lama:...") tidak disentuh, karena stoknya sudah dicatat terpisah.
  */
 function syncStokForTx_(tx, u) {
+  syncBahanForTx_(tx, u);
   if (String(tx.sumber || '').indexOf('lama:') === 0) return;
   const want = (!isTrue_(tx.dihapus) && tx.kategori === KATEGORI_KARTU && tx.jenis === 'masuk')
     ? Math.round(num_(tx.qty_kartu)) : 0;

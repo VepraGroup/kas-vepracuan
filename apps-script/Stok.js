@@ -47,6 +47,7 @@ function tambahStok_(d, u) {
     dibuat_oleh: u.email, dibuat_pada: nowIso_(),
   };
   append_('Stok', row);
+  if (d.jenis === 'produksi') pakaiBahanProduksi_(row, n, d.reject, u);
   log_(u.email, 'tambah', 'Stok', row.id, row);
   return getStok_();
 }
@@ -78,6 +79,7 @@ function hapusStok_(d, u) {
   r.dihapus_oleh = u.email;
   r.dihapus_pada = nowIso_();
   updateRow_('Stok', r._row, r);
+  hapusBahanRef_(r.id, u);
   log_(u.email, 'hapus', 'Stok', r.id, clean_(r));
   return getStok_();
 }

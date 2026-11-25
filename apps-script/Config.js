@@ -13,8 +13,13 @@ const SHEETS = {
     'pembeli', 'produk', 'qty_kartu', 'harga_barang', 'ongkir', 'biaya_lynk',
     'bukti_url', 'sumber', 'ref_id', 'pasangan_id', 'perlu_cek',
     'dibuat_oleh', 'dibuat_pada', 'diubah_oleh', 'diubah_pada',
-    'dihapus', 'dihapus_oleh', 'dihapus_pada'],
+    'dihapus', 'dihapus_oleh', 'dihapus_pada', 'bahan', 'qty_bahan'],
   Stok: ['id', 'tanggal', 'jenis', 'jumlah', 'keterangan', 'ref_transaksi',
+    'dibuat_oleh', 'dibuat_pada', 'dihapus', 'dihapus_oleh', 'dihapus_pada'],
+  // Bahan baku: daftar jenis bahan + resep (berapa dipakai per 1 kartu)
+  Bahan: ['kode', 'nama', 'satuan', 'per_kartu', 'batas', 'aktif'],
+  // Mutasi stok bahan (+ beli, − pakai produksi, − reject, ± opname)
+  StokBahan: ['id', 'tanggal', 'bahan', 'jenis', 'jumlah', 'keterangan', 'ref',
     'dibuat_oleh', 'dibuat_pada', 'dihapus', 'dihapus_oleh', 'dihapus_pada'],
   Pengguna: ['email', 'nama', 'peran', 'aktif'],
   Kategori: ['nama', 'jenis', 'hitung_laba', 'aktif'],
@@ -27,7 +32,16 @@ const SHEETS = {
 
 /** Kolom yang harus disimpan sebagai teks (supaya Sheets tidak mengubahnya jadi tanggal/angka). */
 const TEXT_COLUMNS = ['id', 'tanggal', 'ref_id', 'pasangan_id', 'ref_transaksi', 'message_id',
-  'thread_id', 'kunci', 'nilai', 'tanggal_email'];
+  'thread_id', 'kunci', 'nilai', 'tanggal_email', 'kode', 'bahan', 'ref'];
+
+const DEFAULT_BAHAN = [
+  // [kode, nama, satuan, per_kartu, batas]
+  ['akrilik', 'Akrilik', 'pcs', 1, 20],
+  ['nfc', 'Chip NFC', 'pcs', 1, 20],
+  ['stiker', 'Stiker', 'pcs', 1, 20],
+  ['polymailer', 'Polymailer', 'pcs', 0, 10],
+];
+const SKEMA_VERSI = '2';
 
 const DEFAULT_KATEGORI = [
   // [nama, jenis, hitung_laba]
