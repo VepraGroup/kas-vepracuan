@@ -19,7 +19,7 @@ function activeTx_() {
 }
 
 /** Validasi & rapikan input transaksi dari form. */
-function validTx_(d) {
+function validTx_(d, u) {
   const jenis = String(d.jenis || '');
   if (jenis !== 'masuk' && jenis !== 'keluar') throw userErr_('Pilih jenis: pemasukan atau pengeluaran.');
   const tanggal = String(d.tanggal || '');
@@ -30,6 +30,9 @@ function validTx_(d) {
   if (!kat) throw userErr_('Kategori "' + (d.kategori || '') + '" tidak dikenal.');
   if (kat.jenis !== jenis) {
     throw userErr_('Kategori "' + d.kategori + '" tidak cocok untuk ' + (jenis === 'masuk' ? 'pemasukan.' : 'pengeluaran.'));
+  }
+  if (u && !can_(u, 'keuangan') && !kat.hitung_laba) {
+    throw userErr_('Kategori "' + d.kategori + '" hanya bisa dicatat oleh owner.');
   }
   if (!akunSet_()[d.akun]) throw userErr_('Akun "' + (d.akun || '') + '" tidak dikenal.');
   const qty = Math.max(0, Math.round(num_(d.qty_kartu)));
@@ -48,7 +51,7 @@ function validTx_(d) {
 
 function simpanTransaksi_(d, u) {
   if (d.id) return ubahTransaksi_(d, u);
-  const v = validTx_(d);
+  const v = validTx_(d, u);
   const tx = Object.assign({
     id: newId_('tx'), sumber: String(d.sumber || 'manual'), dibuat_oleh: u.email, dibuat_pada: nowIso_(),
   }, v);
@@ -83,7 +86,7 @@ function ubahTransaksi_(d, u) {
     });
     return { id: ex.id };
   }
-  const v = validTx_(d);
+  const v = validTx_(d, u);
   if (d.bukti_url === undefined || d.bukti_url === '') v.bukti_url = ex.bukti_url;
   const before = clean_(ex);
   Object.assign(ex, v, { perlu_cek: '', diubah_oleh: u.email, diubah_pada: nowIso_() });
@@ -99,7 +102,7 @@ function simpanBanyak_(d, u) {
   if (items.length > 100) throw userErr_('Terlalu banyak baris sekaligus (maks 100).');
   const rows = items.map(function (it, i) {
     try {
-      const v = validTx_(Object.assign({ bukti_url: d.bukti_url }, it));
+      const v = validTx_(Object.assign({ bukti_url: d.bukti_url }, it), u);
       return Object.assign({
         id: newId_('tx') + '-' + (i + 1), sumber: String(d.sumber || 'foto'), dibuat_oleh: u.email, dibuat_pada: nowIso_(),
       }, v);
@@ -196,6 +199,7 @@ function syncStokForTx_(tx, u) {
 function listTransaksi_(d) {
   const q = String(d.q || '').toLowerCase().trim();
   let rows = activeTx_().filter(function (t) {
+    if (d.oleh && t.dibuat_oleh !== d.oleh) return false;
     if (d.akun && t.akun !== d.akun) return false;
     if (d.kategori && t.kategori !== d.kategori) return false;
     if (d.jenis && t.jenis !== d.jenis) return false;

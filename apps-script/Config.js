@@ -69,6 +69,6 @@ const KATEGORI_KARTU = 'Penjualan Kartu';
 
 /** Izin per peran. */
 const PERAN = {
-  owner: ['lihat', 'tambah', 'ubah', 'ubah_semua', 'hapus', 'pengaturan'],
+  owner: ['lihat', 'tambah', 'ubah', 'ubah_semua', 'hapus', 'pengaturan', 'keuangan'],
   admin: ['lihat', 'tambah', 'ubah'],
 };

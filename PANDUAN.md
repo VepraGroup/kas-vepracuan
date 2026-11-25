@@ -17,8 +17,16 @@ Setelah masuk, kamu tetap masuk selama 30 hari di HP/browser itu. Untuk keluar, 
 
 | Peran | Bisa apa |
 |---|---|
-| **Owner** (Ahmad, Ariq) | Semua: melihat, menambah, mengubah, menghapus, membuka Pengaturan |
-| **Admin** (misal Irran) | Melihat dan menambah catatan, serta mengubah catatan yang dia buat sendiri. **Tidak bisa** menghapus atau membuka Pengaturan |
+| **Owner** (Ahmad, Ariq) | Semua: melihat kas, saldo, laba, dan laporan; mencatat, mengubah, menghapus; Mutasi, Pindah Dana, Modal, Prive; membuka Pengaturan dan Google Sheet |
+| **Admin** (misal Irran) | Mencatat pengeluaran dan penjualan (Manual, Foto Nota), melihat dan mengubah **catatannya sendiri**, mengurus stok, dan melihat status Lynk |
+
+**Yang dirahasiakan dari admin** (dikunci di server, jadi datanya memang tidak pernah dikirim ke akun admin):
+- kas sekarang, saldo per akun, total pemasukan, pengeluaran, dan laba, grafik, serta laporan bulanan,
+- transaksi yang dicatat orang lain, termasuk order Lynk,
+- Mutasi rekening, Pindah Dana, Modal, dan Prive,
+- Google Sheet dan folder foto bukti. Admin hanya bisa membuka foto yang dia unggah sendiri.
+
+Kalau peran seseorang diubah, tampilannya ikut berubah saat dia membuka halaman atau menekan tombol berikutnya, tanpa perlu keluar.
 
 ---
 

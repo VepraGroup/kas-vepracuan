@@ -19,6 +19,10 @@ function simpanFoto_(b64, mime, label, u) {
   const nama = Utilities.formatDate(new Date(), TZ, 'yyyyMMdd-HHmmss') + '_' + label + '_' +
     String(u.email).split('@')[0] + '.' + ext;
   const file = folderBukti_().createFile(Utilities.newBlob(Utilities.base64Decode(b64), mime, nama));
+  // Owner bisa lihat seluruh folder; admin hanya diberi akses ke foto yang dia unggah sendiri.
+  if (!can_(u, 'keuangan')) {
+    try { file.addViewer(u.email); } catch (e) { console.warn('Gagal berbagi foto ke ' + u.email + ': ' + e); }
+  }
   return { url: file.getUrl(), id: file.getId() };
 }
 
@@ -93,6 +97,7 @@ function gemini_(mode, b64, mime) {
 
 function bacaFoto_(d, u) {
   const mode = d.mode === 'mutasi' ? 'mutasi' : 'invoice';
+  if (mode === 'mutasi' && !can_(u, 'keuangan')) throw userErr_('Membaca mutasi rekening hanya untuk owner.');
   const f = simpanFoto_(d.gambar, d.mime, mode, u);
   const hasil = gemini_(mode, d.gambar, d.mime);
   if (mode === 'mutasi' && Array.isArray(hasil.baris)) {

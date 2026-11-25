@@ -6,11 +6,15 @@
 // Dibungkus fungsi supaya fungsi dari file lain sudah termuat saat dipanggil.
 function routes_() { return {
   me:              { izin: 'lihat',      fn: function (d, u) { return bootstrap_(u); } },
-  dashboard:       { izin: 'lihat',      fn: dashboard_ },
-  listTransaksi:   { izin: 'lihat',      fn: listTransaksi_ },
+  // Angka keuangan (kas, saldo, laba, laporan) hanya untuk peran dengan izin 'keuangan' (owner).
+  dashboard:       { izin: 'lihat',      fn: function (d, u) { return can_(u, 'keuangan') ? dashboard_(d) : dashboardAdmin_(u); } },
+  listTransaksi:   { izin: 'lihat',      fn: function (d, u) {
+    // Admin hanya melihat catatan yang dia buat sendiri.
+    return listTransaksi_(can_(u, 'keuangan') ? d : Object.assign({}, d, { oleh: u.email }));
+  } },
   simpanTransaksi: { izin: 'tambah',     fn: simpanTransaksi_, tulis: true },
   simpanBanyak:    { izin: 'tambah',     fn: simpanBanyak_, tulis: true },
-  pindahDana:      { izin: 'tambah',     fn: pindahDana_, tulis: true },
+  pindahDana:      { izin: 'keuangan',   fn: pindahDana_, tulis: true },
   hapusTransaksi:  { izin: 'hapus',      fn: hapusTransaksi_, tulis: true },
   getStok:         { izin: 'lihat',      fn: getStok_ },
   tambahStok:      { izin: 'tambah',     fn: tambahStok_, tulis: true },
@@ -18,7 +22,7 @@ function routes_() { return {
   hapusStok:       { izin: 'hapus',      fn: hapusStok_, tulis: true },
   bacaFoto:        { izin: 'tambah',     fn: bacaFoto_ },
   uploadBukti:     { izin: 'tambah',     fn: uploadBukti_ },
-  laporan:         { izin: 'lihat',      fn: laporan_ },
+  laporan:         { izin: 'keuangan',   fn: laporan_ },
   syncLynk:        { izin: 'tambah',     fn: function () { return syncLynk_({}); } },
   getPengaturan:   { izin: 'pengaturan', fn: getPengaturan_ },
   simpanPengguna:  { izin: 'pengaturan', fn: simpanPengguna_, tulis: true },
@@ -76,7 +80,10 @@ function route_(req) {
 function bootstrap_(u) {
   return {
     user: publicUser_(u),
-    kategori: readAll_('Kategori').filter(function (k) { return String(k.aktif).toUpperCase() !== 'FALSE'; })
+    // Admin tidak diberi kategori di luar usaha (Modal, Prive, Pindah Dana).
+    kategori: readAll_('Kategori').filter(function (k) {
+      return String(k.aktif).toUpperCase() !== 'FALSE' && (can_(u, 'keuangan') || isTrue_(k.hitung_laba));
+    })
       .map(function (k) { return { nama: k.nama, jenis: k.jenis, hitung_laba: isTrue_(k.hitung_laba) }; }),
     akun: readAll_('Akun').filter(function (a) { return String(a.aktif).toUpperCase() !== 'FALSE'; })
       .map(function (a) { return a.nama; }),

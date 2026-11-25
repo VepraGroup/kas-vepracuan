@@ -45,16 +45,24 @@ function simpanPengguna_(d, u) {
     log_(u.email, 'tambah', 'Pengguna', email, row);
   }
   if (aktif === 'FALSE') cabutSesiEmail_(email);
-  else bagikanAkses_(email, peran);
+  bagikanAkses_(email, aktif === 'FALSE' ? '' : peran);
   return getPengaturan_();
 }
 
-/** Beri akses lihat folder bukti; owner juga jadi editor Sheet. */
+/**
+ * Hanya owner yang boleh membuka Google Sheet & seluruh folder foto bukti.
+ * Admin / pengguna nonaktif dicabut aksesnya (admin tetap bisa melihat foto yang dia unggah sendiri).
+ */
 function bagikanAkses_(email, peran) {
-  try { folderBukti_().addViewer(email); } catch (e) { console.warn('Gagal berbagi folder ke ' + email + ': ' + e); }
+  if (email === String(Session.getEffectiveUser().getEmail()).toLowerCase()) return;
   if (peran === 'owner') {
+    try { folderBukti_().addViewer(email); } catch (e) { console.warn('Gagal berbagi folder ke ' + email + ': ' + e); }
     try { ss_().addEditor(email); } catch (e) { console.warn('Gagal berbagi Sheet ke ' + email + ': ' + e); }
+    return;
   }
+  try { folderBukti_().removeViewer(email); } catch (e) { /* memang belum punya akses */ }
+  try { ss_().removeEditor(email); } catch (e) { /* memang belum punya akses */ }
+  try { ss_().removeViewer(email); } catch (e) { /* memang belum punya akses */ }
 }
 
 function simpanKategori_(d, u) {

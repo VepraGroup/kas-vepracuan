@@ -76,6 +76,25 @@ function statusLynk_(tx) {
   return { order_terakhir: terakhir, hari_sejak: hari, run: run, peringatan: peringatan };
 }
 
+/** Beranda untuk admin: TANPA angka uang (kas, saldo, pemasukan, pengeluaran, laba). */
+function dashboardAdmin_(u) {
+  const tx = activeTx_();
+  const lynk = statusLynk_(tx);
+  const milikku = tx.filter(function (t) { return t.dibuat_oleh === u.email; });
+  const hariIni = today_();
+  const stok = stokSekarang_();
+  const batas = num_(getSetting_('batas_stok'));
+  return {
+    admin: true,
+    lynk: { order_terakhir: lynk.order_terakhir, hari_sejak: lynk.hari_sejak, peringatan: lynk.peringatan,
+      run: lynk.run ? { ok: lynk.run.ok, waktu: lynk.run.waktu, pesan: lynk.run.pesan } : null },
+    stok: { sekarang: stok, batas: batas, rendah: stok < batas },
+    catatan_hari_ini: milikku.filter(function (t) { return t.tanggal === hariIni; }).length,
+    catatan_bulan_ini: milikku.filter(function (t) { return String(t.tanggal).slice(0, 7) === hariIni.slice(0, 7); }).length,
+    perlu_cek: milikku.filter(function (t) { return isTrue_(t.perlu_cek); }).length,
+  };
+}
+
 function dashboard_(d) {
   const tx = activeTx_();
   const kat = kategoriMap_();

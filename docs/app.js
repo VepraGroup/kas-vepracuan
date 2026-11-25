@@ -254,9 +254,45 @@ function daftarKategoriHtml(list, total, cls) {
     <div class="bar ${cls || ''}"><span style="width:${total ? Math.round((k.jumlah / total) * 100) : 0}%"></span></div></div>
     <div class="num">${rp(k.jumlah)}</div></li>`).join('') + '</ul>';
 }
+/* Beranda admin: tanpa angka uang sama sekali (server juga tidak mengirimnya). */
+function berandaAdmin(el, d) {
+  let alerts = '';
+  d.lynk.peringatan.forEach((p) => { alerts += `<div class="alert warn">${ic('awas')}<span>${esc(p)}</span></div>`; });
+  if (d.stok.rendah) alerts += `<div class="alert bad">${ic('kartu')}<span>Stok kartu tinggal <b>${d.stok.sekarang}</b> (batas ${d.stok.batas}). Kabari owner untuk produksi.</span></div>`;
+  if (d.perlu_cek) alerts += `<a href="#/transaksi" onclick="S.filter={perlu_cek:true}" style="text-decoration:none"><div class="alert info">${ic('tanda')}<span>Ada <b>${d.perlu_cek}</b> catatanmu yang perlu dicek.</span></div></a>`;
+  const run = d.lynk.run;
+  el.innerHTML = `
+    <div class="card hero">
+      <div class="label">Halo, ${esc(S.user.nama)}</div>
+      <div class="big" style="font-size:24px">Mau catat apa hari ini?</div>
+      <div class="chips">
+        <div class="chip dot-green"><span class="nm">Catatanmu hari ini</span><b>${d.catatan_hari_ini}</b></div>
+        <div class="chip dot-blue"><span class="nm">Bulan ini</span><b>${d.catatan_bulan_ini}</b></div>
+        <div class="chip dot-yellow"><span class="nm">Stok kartu</span><b>${d.stok.sekarang}</b></div>
+      </div>
+    </div>
+    ${alerts}
+    <div class="card">${judul('petir', 'c-yellow', 'Pintasan')}
+      <ul class="list">
+        <li><a href="#/catat" class="menu" onclick="S.catatTab='nota'">${bub('kamera', 'c-red')}<span>Foto nota pengeluaran</span>${ic('kanan', 'chev')}</a></li>
+        <li><a href="#/catat" class="menu" onclick="S.catatTab='manual'">${bub('catat', 'c-green')}<span>Catat manual (jual kartu, belanja)</span>${ic('kanan', 'chev')}</a></li>
+        <li><a href="#/stok" class="menu">${bub('kartu', 'c-yellow')}<span>Stok kartu</span>${ic('kanan', 'chev')}</a></li>
+        <li><a href="#/transaksi" class="menu">${bub('daftar', 'c-blue')}<span>Catatan yang sudah kubuat</span>${ic('kanan', 'chev')}</a></li>
+      </ul></div>
+    <div class="card">${judul('segar', 'c-yellow', 'Lynk otomatis')}
+      <p class="small">Order terakhir tercatat: <b>${d.lynk.order_terakhir ? tglIndo(d.lynk.order_terakhir) + ' (' + d.lynk.hari_sejak + ' hari lalu)' : '-'}</b><br>
+      Pengecekan terakhir: ${run ? esc(run.waktu.replace('T', ' ')) + ' — ' + (run.ok ? ic('oke', 'in') : ic('gagal', 'out')) : 'belum pernah'}</p>
+      <button class="btn ghost sm" id="b-lynk">Cek email Lynk sekarang</button></div>
+    <p class="small muted">Angka keuangan (kas, saldo, laba) hanya bisa dilihat owner.</p>`;
+  $('#b-lynk').onclick = async () => {
+    try { await api('syncLynk', {}, 'Membaca email Lynk…'); toast('Pengecekan Lynk selesai.'); viewBeranda(el); } catch (e) { toast(e.message, true); }
+  };
+}
+
 async function viewBeranda(el) {
   S.bulan = S.bulan || hariIni().slice(0, 7);
   const d = await api('dashboard', { bulan: S.bulan });
+  if (d.admin) return berandaAdmin(el, d);
   const r = d.ringkas;
   let alerts = '';
   d.lynk.peringatan.forEach((p) => { alerts += `<div class="alert warn">${ic('awas')}<span>${esc(p)}</span></div>`; });
@@ -323,6 +359,7 @@ function pasangRupiah(root) {
     });
   });
 }
+const kategoriAda = (nama) => S.kategori.some((k) => k.nama === nama);
 function kategoriCocok(jenis, nama) { const k = S.kategori.find((x) => x.nama === nama); return k && k.jenis === jenis; }
 
 /* Kompres foto di HP sebelum dikirim (maks 1600px, JPEG). */
@@ -362,8 +399,10 @@ const ISI_CEPAT = [
 ];
 
 async function viewCatat(el) {
-  const tabs = [['manual', 'Manual'], ['nota', 'Foto Nota'], ['mutasi', 'Mutasi'], ['pindah', 'Pindah Dana']];
-  if (S.editTx) S.catatTab = 'manual';
+  const tabs = bisa('keuangan')
+    ? [['manual', 'Manual'], ['nota', 'Foto Nota'], ['mutasi', 'Mutasi'], ['pindah', 'Pindah Dana']]
+    : [['manual', 'Manual'], ['nota', 'Foto Nota']];
+  if (S.editTx || !tabs.some((t) => t[0] === S.catatTab)) S.catatTab = 'manual';
   el.innerHTML = `<div class="seg" id="c-tabs">${tabs.map((t) => `<button data-t="${t[0]}" class="${S.catatTab === t[0] ? 'on' : ''}">${t[1]}</button>`).join('')}</div><div id="c-body"></div>`;
   $$('#c-tabs button').forEach((b) => { b.onclick = () => { S.catatTab = b.dataset.t; S.editTx = null; S.foto = null; viewCatat(el); }; });
   const body = $('#c-body');
@@ -380,7 +419,7 @@ function formManual(el) {
   el.innerHTML = `
     ${edit ? `<div class="alert info">Mengubah transaksi ${esc(tglIndo(t.tanggal))} — ${esc(t.keterangan)}
       <button class="btn ghost sm" id="m-batal" style="margin-left:8px">Batal ubah</button></div>` : `
-    <div class="card">${judul('petir', 'c-yellow', 'Isi cepat')}<div class="quick">${ISI_CEPAT.map((q, i) => `<button data-q="${i}">${bub(q.ikon, q.kategori === 'Modal Masuk' ? 'c-yellow' : q.kategori.indexOf('Prive') === 0 ? 'c-purple' : q.jenis === 'masuk' ? 'c-green' : 'c-red')}${q.label}</button>`).join('')}</div></div>`}
+    <div class="card">${judul('petir', 'c-yellow', 'Isi cepat')}<div class="quick">${ISI_CEPAT.map((q, i) => (!kategoriAda(q.kategori) ? '' : `<button data-q="${i}">${bub(q.ikon, q.kategori === 'Modal Masuk' ? 'c-yellow' : q.kategori.indexOf('Prive') === 0 ? 'c-purple' : q.jenis === 'masuk' ? 'c-green' : 'c-red')}${q.label}</button>`)).join('')}</div></div>`}
     <div class="card">
       ${pindah ? '<p class="small muted">Ini transaksi pindah dana: hanya tanggal, jumlah, dan keterangan yang bisa diubah.</p>' : `
       <div class="seg" id="m-jenis"><button data-j="masuk">Pemasukan</button><button data-j="keluar">Pengeluaran</button></div>`}
@@ -633,6 +672,7 @@ async function viewTransaksi(el) {
       <select id="t-kat"><option value="">Semua kategori</option>${opsiKategori(null, f.kategori, true)}</select>
     </div>
     <label class="check" style="margin-top:10px"><input type="checkbox" id="t-cek" ${f.perlu_cek ? 'checked' : ''}> Hanya yang perlu dicek</label>
+    ${bisa('keuangan') ? '' : '<p class="small muted" style="margin:10px 0 0">Menampilkan catatan yang kamu buat sendiri.</p>'}
     </div><div id="t-list"></div>`;
   if (!f.akun) $('#t-akun').value = '';
   if (!f.kategori) $('#t-kat').value = '';
@@ -735,7 +775,7 @@ async function viewStok(el, data) {
 /* ---------- Lainnya & Laporan ---------- */
 function viewLainnya(el) {
   el.innerHTML = `<div class="card"><ul class="list">
-    <li><a href="#/laporan" class="menu">${bub('laporan', 'c-blue')}<span>Laporan bulanan</span>${ic('kanan', 'chev')}</a></li>
+    ${bisa('keuangan') ? `<li><a href="#/laporan" class="menu">${bub('laporan', 'c-blue')}<span>Laporan bulanan</span>${ic('kanan', 'chev')}</a></li>` : ''}
     ${isOwner() ? `<li><a href="#/pengaturan" class="menu">${bub('atur', 'c-yellow')}<span>Pengaturan</span>${ic('kanan', 'chev')}</a></li>` : ''}
     <li><a href="#" id="l-keluar" class="menu out">${bub('logout', 'c-red')}<span>Keluar</span></a></li></ul></div>
     <p class="small muted">Masuk sebagai ${esc(S.user.email)} (${isOwner() ? 'owner' : 'admin'}).</p>`;
@@ -743,6 +783,7 @@ function viewLainnya(el) {
 }
 
 async function viewLaporan(el) {
+  if (!bisa('keuangan')) { el.innerHTML = '<div class="alert bad">Laporan keuangan hanya untuk owner.</div>'; return; }
   S.bulan = S.bulan || hariIni().slice(0, 7);
   const d = await api('laporan', { bulan: S.bulan });
   const r = d.ringkas;
