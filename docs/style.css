@@ -267,3 +267,21 @@ pre.raw { white-space: pre-wrap; word-break: break-word; background: var(--bg); 
   .card { box-shadow: none; border: 1px solid #ccc; break-inside: avoid; }
 }
 .pd { color: var(--blue); }
+
+/* Grafik 6 bulan */
+.grafik { width: 100%; min-height: 236px; margin: 4px 0 2px; }
+.grafik svg { display: block; overflow: visible; }
+.grafik .hit { cursor: pointer; }
+.legend i.garis { width: 16px; height: 3px; border-radius: 2px; background: #1a73e8; vertical-align: 3px; }
+.tumbuh { transform-box: fill-box; transform-origin: bottom; animation: tumbuh .7s cubic-bezier(.2, .8, .2, 1) both; }
+@keyframes tumbuh { from { transform: scaleY(0); } }
+.muncul { animation: muncul .6s ease .45s both; }
+@keyframes muncul { from { opacity: 0; } }
+.ginfo-judul { font-weight: 800; margin: 14px 0 8px; }
+.ginfo { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.ginfo > div { border-radius: 12px; padding: 9px 10px; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.ginfo span { font-size: 12px; font-weight: 700; display: flex; align-items: center; gap: 4px; }
+.ginfo span .i { width: 15px; height: 15px; }
+.ginfo b { font-size: 14px; overflow: hidden; text-overflow: ellipsis; }
+@media (max-width: 380px) { .ginfo b { font-size: 12.5px; } }
+@media (prefers-reduced-motion: reduce) { .tumbuh, .muncul { animation: none; } }

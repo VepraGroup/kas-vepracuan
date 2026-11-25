@@ -158,20 +158,81 @@ async function router() {
 window.addEventListener('hashchange', router);
 
 /* ---------- Beranda ---------- */
-function grafikSvg(data) {
-  const W = 340, H = 170, pad = 22, max = Math.max(1, ...data.map((d) => Math.max(d.masuk, d.keluar)));
-  const gw = (W - pad) / data.length, bw = Math.min(16, gw / 3);
-  let bars = '';
-  data.forEach((d, i) => {
-    const x = pad + i * gw + gw / 2;
-    const hm = (d.masuk / max) * (H - 40), hk = (d.keluar / max) * (H - 40);
-    bars += `<rect x="${x - bw - 1}" y="${H - 22 - hm}" width="${bw}" height="${hm}" rx="3" fill="#34a853"><title>Masuk ${rp(d.masuk)}</title></rect>`;
-    bars += `<rect x="${x + 1}" y="${H - 22 - hk}" width="${bw}" height="${hk}" rx="3" fill="#ea4335"><title>Keluar ${rp(d.keluar)}</title></rect>`;
-    bars += `<text x="${x}" y="${H - 6}" font-size="11" text-anchor="middle" fill="#64708a">${BLN[Number(d.bulan.slice(5, 7)) - 1]}</text>`;
-  });
-  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Grafik 6 bulan"><line x1="${pad}" y1="${H - 22}" x2="${W}" y2="${H - 22}" stroke="#dfe4ee"/>${bars}</svg>
-    <div class="legend"><span><i style="background:#34a853"></i>Pemasukan</span><span><i style="background:#ea4335"></i>Pengeluaran</span></div>`;
+/* Angka singkat untuk sumbu grafik: Rp1,5jt / Rp250rb */
+function rpSingkat(n) {
+  const a = Math.abs(n), s = n < 0 ? '-' : '';
+  if (a >= 1e6) return s + 'Rp' + (a / 1e6).toFixed(a >= 1e7 || a % 1e6 === 0 ? 0 : 1).replace('.', ',') + 'jt';
+  if (a >= 1e3) return s + 'Rp' + Math.round(a / 1e3) + 'rb';
+  return s + 'Rp' + Math.round(a);
 }
+function langkahRapi(kasar) {
+  const p = Math.pow(10, Math.floor(Math.log10(kasar || 1))), n = kasar / p;
+  return (n <= 1 ? 1 : n <= 2 ? 2 : n <= 2.5 ? 2.5 : n <= 5 ? 5 : 10) * p;
+}
+/* Grafik 6 bulan: batang masuk/keluar + garis laba. Digambar seukuran layar supaya tajam. */
+function renderGrafik(data, pilih, animasi) {
+  const box = $('#grafik'), info = $('#grafik-info');
+  if (!box) return;
+  S.grafik = data;
+  S.grafikPilih = pilih;
+  const W = Math.max(280, box.clientWidth), H = 236, padL = 54, padR = 8, padT = 16, padB = 30;
+  const laba = data.map((d) => d.masuk - d.keluar);
+  let max = Math.max(1, ...data.map((d) => Math.max(d.masuk, d.keluar)), ...laba);
+  let min = Math.min(0, ...laba);
+  const step = langkahRapi((max - min) / 4);
+  max = Math.ceil(max / step) * step; min = Math.floor(min / step) * step;
+  const y = (v) => padT + ((max - v) / (max - min)) * (H - padT - padB);
+  const gw = (W - padL - padR) / data.length, bw = Math.max(8, Math.min(24, gw * 0.26)), r = Math.min(6, bw / 2);
+  // Batang dengan sudut atas membulat
+  const batang = (x, v, isi, i) => {
+    const t = y(v), b = y(0), h = b - t;
+    if (h < 1) return '';
+    const rr = Math.min(r, h);
+    return `<path class="${animasi ? 'tumbuh' : ''}" style="animation-delay:${i * 70}ms" fill="${isi}"
+      d="M${x},${b} V${t + rr} Q${x},${t} ${x + rr},${t} H${x + bw - rr} Q${x + bw},${t} ${x + bw},${t + rr} V${b} Z"/>`;
+  };
+  let svg = `<defs>
+    <linearGradient id="gIn" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5bd17a"/><stop offset="1" stop-color="#188038"/></linearGradient>
+    <linearGradient id="gOut" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff8a7a"/><stop offset="1" stop-color="#d93025"/></linearGradient>
+    <linearGradient id="gArea" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4285f4" stop-opacity=".22"/><stop offset="1" stop-color="#4285f4" stop-opacity="0"/></linearGradient></defs>`;
+  if (pilih != null) {
+    svg += `<rect x="${padL + gw * pilih + 3}" y="${padT - 8}" width="${gw - 6}" height="${H - padT - padB + 32}" rx="12" fill="#eaf1fe"/>`;
+  }
+  for (let v = min; v <= max + step / 2; v += step) {
+    const yy = y(v);
+    svg += `<line x1="${padL}" x2="${W - padR}" y1="${yy}" y2="${yy}" stroke="${v === 0 ? '#c9d2e3' : '#edf0f6'}" stroke-width="${v === 0 ? 1.4 : 1}" ${v === 0 ? '' : 'stroke-dasharray="3 4"'}/>`;
+    svg += `<text x="${padL - 8}" y="${yy + 4}" text-anchor="end" font-size="11" fill="#8a94ab">${rpSingkat(v)}</text>`;
+  }
+  const titik = [];
+  data.forEach((d, i) => {
+    const cx = padL + gw * i + gw / 2;
+    svg += batang(cx - bw - 2, d.masuk, 'url(#gIn)', i) + batang(cx + 2, d.keluar, 'url(#gOut)', i);
+    svg += `<text x="${cx}" y="${H - 9}" text-anchor="middle" font-size="12" font-weight="${i === pilih ? 800 : 500}" fill="${i === pilih ? '#1a73e8' : '#5f6b85'}">${BLN[Number(d.bulan.slice(5, 7)) - 1]}</text>`;
+    titik.push([cx, y(laba[i])]);
+  });
+  // Garis laba + area
+  const garis = titik.map((p, i) => (i ? 'L' : 'M') + p[0] + ',' + p[1]).join(' ');
+  svg += `<path d="${garis} L${titik[titik.length - 1][0]},${y(0)} L${titik[0][0]},${y(0)} Z" fill="url(#gArea)" class="${animasi ? 'muncul' : ''}"/>`;
+  svg += `<path d="${garis}" fill="none" stroke="#1a73e8" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" class="${animasi ? 'muncul' : ''}"/>`;
+  titik.forEach((p, i) => {
+    svg += `<circle cx="${p[0]}" cy="${p[1]}" r="${i === pilih ? 6 : 4}" fill="${i === pilih ? '#1a73e8' : '#fff'}" stroke="#1a73e8" stroke-width="2.5" class="${animasi ? 'muncul' : ''}"/>`;
+  });
+  // Area ketuk per bulan
+  data.forEach((d, i) => { svg += `<rect class="hit" data-i="${i}" x="${padL + gw * i}" y="0" width="${gw}" height="${H}" fill="transparent"/>`; });
+  box.innerHTML = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="Grafik pemasukan dan pengeluaran 6 bulan">${svg}</svg>`;
+  $$('.hit', box).forEach((h) => { h.onclick = () => renderGrafik(data, Number(h.dataset.i), false); });
+  if (info && pilih != null) {
+    const d = data[pilih], l = laba[pilih];
+    info.innerHTML = `<div class="ginfo-judul">${namaBulan(d.bulan)}</div><div class="ginfo">
+      <div class="c-green"><span>${ic('masuk')}Masuk</span><b class="num">${rp(d.masuk)}</b></div>
+      <div class="c-red"><span>${ic('keluar')}Keluar</span><b class="num">${rp(d.keluar)}</b></div>
+      <div class="${l >= 0 ? 'c-blue' : 'c-yellow'}"><span>${ic('laba')}${l >= 0 ? 'Laba' : 'Rugi'}</span><b class="num">${rp(l)}</b></div></div>`;
+  }
+}
+window.addEventListener('resize', () => {
+  clearTimeout(window.__rg);
+  window.__rg = setTimeout(() => { if ($('#grafik') && S.grafik) renderGrafik(S.grafik, S.grafikPilih != null ? S.grafikPilih : S.grafik.length - 1, false); }, 200);
+});
 function daftarKategoriHtml(list, total, cls) {
   if (!list.length) return '<p class="muted small">Belum ada.</p>';
   return '<ul class="list">' + list.map((k) => `<li><div style="flex:1">${esc(k.nama)}
@@ -205,7 +266,11 @@ async function viewBeranda(el) {
       </div>
       ${r.non_usaha.length ? `<p class="small muted">Tidak dihitung sebagai usaha: ${r.non_usaha.map((n) => esc(n.nama) + ' ' + rp(n.jumlah)).join(' · ')}</p>` : ''}
     </div>
-    <div class="card chart">${judul('grafik', 'c-blue', '6 bulan terakhir')}${grafikSvg(d.grafik)}</div>
+    <div class="card chart">${judul('grafik', 'c-blue', '6 bulan terakhir')}
+      <div id="grafik" class="grafik"></div>
+      <div class="legend"><span><i style="background:#34a853"></i>Pemasukan</span><span><i style="background:#ea4335"></i>Pengeluaran</span><span><i class="garis"></i>Laba bersih</span></div>
+      <div id="grafik-info"></div>
+      <p class="small muted" style="margin:8px 0 0">Ketuk bulan di grafik untuk melihat rinciannya.</p></div>
     <div class="card">${judul('laporan', 'c-purple', 'Rincian ' + namaBulan(d.bulan))}
       <h3 class="in">Pemasukan</h3>${daftarKategoriHtml(r.per_masuk, r.masuk, 'in')}
       <h3 class="out">Pengeluaran</h3>${daftarKategoriHtml(r.per_keluar, r.keluar, 'out')}
@@ -217,6 +282,7 @@ async function viewBeranda(el) {
     </div>
     <div class="card">${judul('kartu', 'c-red', 'Stok kartu')}<p>Sisa <b>${d.stok.sekarang}</b> kartu <span class="muted small">(batas peringatan ${d.stok.batas})</span></p>
       <a class="btn ghost sm" href="#/stok">Buka Stok</a></div>`;
+  renderGrafik(d.grafik, d.grafik.length - 1, true);
   $('#b-prev').onclick = () => { S.bulan = geserBulan(S.bulan, -1); viewBeranda(el); };
   $('#b-next').onclick = () => { S.bulan = geserBulan(S.bulan, 1); viewBeranda(el); };
   $('#b-lynk').onclick = async () => {
