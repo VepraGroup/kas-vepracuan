@@ -37,7 +37,7 @@ function loading(on, teks) {
 let toastTimer;
 function toast(msg, bad) {
   const t = $('#toast');
-  t.textContent = msg;
+  t.innerHTML = ic(bad ? 'gagal' : 'oke') + '<span>' + esc(String(msg).replace(/\s*✅\s*/g, '')) + '</span>';
   t.className = 'toast' + (bad ? ' bad' : '');
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => t.classList.add('hidden'), bad ? 6000 : 3000);
@@ -179,9 +179,9 @@ async function viewBeranda(el) {
   const d = await api('dashboard', { bulan: S.bulan });
   const r = d.ringkas;
   let alerts = '';
-  d.lynk.peringatan.forEach((p) => { alerts += `<div class="alert warn">⚠️ ${esc(p)}</div>`; });
-  if (d.stok.rendah) alerts += `<div class="alert bad">📦 Stok kartu tinggal <b>${d.stok.sekarang}</b> (batas ${d.stok.batas}). Segera produksi.</div>`;
-  if (d.perlu_cek) alerts += `<a href="#/transaksi" onclick="S.filter={perlu_cek:true}" style="text-decoration:none"><div class="alert info">🔎 Ada <b>${d.perlu_cek}</b> transaksi yang perlu dicek. Ketuk untuk melihat.</div></a>`;
+  d.lynk.peringatan.forEach((p) => { alerts += `<div class="alert warn">${ic('awas')}<span>${esc(p)}</span></div>`; });
+  if (d.stok.rendah) alerts += `<div class="alert bad">${ic('kartu')}<span>Stok kartu tinggal <b>${d.stok.sekarang}</b> (batas ${d.stok.batas}). Segera produksi.</span></div>`;
+  if (d.perlu_cek) alerts += `<a href="#/transaksi" onclick="S.filter={perlu_cek:true}" style="text-decoration:none"><div class="alert info">${ic('tanda')}<span>Ada <b>${d.perlu_cek}</b> transaksi yang perlu dicek. Ketuk untuk melihat.</span></div></a>`;
   const run = d.lynk.run;
   el.innerHTML = `
     <div class="card hero">
@@ -192,7 +192,7 @@ async function viewBeranda(el) {
     ${alerts}
     <div class="card">
       <div class="monthnav">
-        <button class="btn ghost sm" id="b-prev">‹</button><b>${namaBulan(d.bulan)}</b><button class="btn ghost sm" id="b-next">›</button>
+        <button class="btn ghost sm" id="b-prev" aria-label="Bulan sebelumnya">${ic('kiri')}</button><b>${namaBulan(d.bulan)}</b><button class="btn ghost sm" id="b-next" aria-label="Bulan berikutnya">${ic('kanan')}</button>
       </div>
       <div class="grid3">
         <div class="stat"><div class="l">Pemasukan</div><div class="v in num">${rp(r.masuk)}</div></div>
@@ -208,7 +208,7 @@ async function viewBeranda(el) {
     </div>
     <div class="card"><h2>Lynk otomatis</h2>
       <p class="small">Order terakhir tercatat: <b>${d.lynk.order_terakhir ? tglIndo(d.lynk.order_terakhir) + ' (' + d.lynk.hari_sejak + ' hari lalu)' : '-'}</b><br>
-      Pengecekan terakhir: ${run ? esc(run.waktu.replace('T', ' ')) + ' — ' + (run.ok ? '✅ ' : '❌ ') + esc(run.pesan) : 'belum pernah'}</p>
+      Pengecekan terakhir: ${run ? esc(run.waktu.replace('T', ' ')) + ' — ' + (run.ok ? ic('oke', 'in') : ic('gagal', 'out')) + esc(run.pesan) : 'belum pernah'}</p>
       <button class="btn ghost sm" id="b-lynk">Cek email Lynk sekarang</button>
     </div>
     <div class="card"><h2>Stok kartu</h2><p>Sisa <b>${d.stok.sekarang}</b> kartu <span class="muted small">(batas peringatan ${d.stok.batas})</span></p>
@@ -264,16 +264,16 @@ function bacaGambar(file) {
 
 /* ---------- Catat ---------- */
 const ISI_CEPAT = [
-  { label: '💵 Jual kartu tunai', jenis: 'masuk', kategori: 'Penjualan Kartu', akun: 'Tunai', ket: 'Jual kartu langsung' },
-  { label: '🏦 Jual kartu transfer', jenis: 'masuk', kategori: 'Penjualan Kartu', akun: 'Bank', ket: 'Jual kartu langsung (transfer)' },
-  { label: '📡 Beli chip NFC', jenis: 'keluar', kategori: 'Cetak Kartu & Bahan', akun: 'Bank', ket: 'Beli chip NFC' },
-  { label: '🟦 Beli akrilik', jenis: 'keluar', kategori: 'Cetak Kartu & Bahan', akun: 'Bank', ket: 'Beli akrilik' },
-  { label: '🏷️ Beli stiker', jenis: 'keluar', kategori: 'Cetak Kartu & Bahan', akun: 'Bank', ket: 'Beli stiker' },
-  { label: '📦 Kemasan', jenis: 'keluar', kategori: 'Kemasan', akun: 'Bank', ket: 'Polymailer / bubble wrap' },
-  { label: '🚚 Ongkir', jenis: 'keluar', kategori: 'Ongkir', akun: 'Bank', ket: 'Ongkir Biteship' },
-  { label: '📣 Iklan', jenis: 'keluar', kategori: 'Iklan & Promosi', akun: 'Bank', ket: 'Iklan' },
-  { label: '💰 Modal masuk', jenis: 'masuk', kategori: 'Modal Masuk', akun: 'Bank', ket: 'Setor modal' },
-  { label: '👤 Prive', jenis: 'keluar', kategori: 'Prive (ambil pribadi)', akun: 'Bank', ket: 'Ambil pribadi' },
+  { ikon: 'tunai', label: 'Jual kartu tunai', jenis: 'masuk', kategori: 'Penjualan Kartu', akun: 'Tunai', ket: 'Jual kartu langsung' },
+  { ikon: 'bank', label: 'Jual kartu transfer', jenis: 'masuk', kategori: 'Penjualan Kartu', akun: 'Bank', ket: 'Jual kartu langsung (transfer)' },
+  { ikon: 'chip', label: 'Beli chip NFC', jenis: 'keluar', kategori: 'Cetak Kartu & Bahan', akun: 'Bank', ket: 'Beli chip NFC' },
+  { ikon: 'akrilik', label: 'Beli akrilik', jenis: 'keluar', kategori: 'Cetak Kartu & Bahan', akun: 'Bank', ket: 'Beli akrilik' },
+  { ikon: 'stiker', label: 'Beli stiker', jenis: 'keluar', kategori: 'Cetak Kartu & Bahan', akun: 'Bank', ket: 'Beli stiker' },
+  { ikon: 'kemasan', label: 'Kemasan', jenis: 'keluar', kategori: 'Kemasan', akun: 'Bank', ket: 'Polymailer / bubble wrap' },
+  { ikon: 'truk', label: 'Ongkir', jenis: 'keluar', kategori: 'Ongkir', akun: 'Bank', ket: 'Ongkir Biteship' },
+  { ikon: 'iklan', label: 'Iklan', jenis: 'keluar', kategori: 'Iklan & Promosi', akun: 'Bank', ket: 'Iklan' },
+  { ikon: 'modal', label: 'Modal masuk', jenis: 'masuk', kategori: 'Modal Masuk', akun: 'Bank', ket: 'Setor modal' },
+  { ikon: 'prive', label: 'Prive', jenis: 'keluar', kategori: 'Prive (ambil pribadi)', akun: 'Bank', ket: 'Ambil pribadi' },
 ];
 
 async function viewCatat(el) {
@@ -295,7 +295,7 @@ function formManual(el) {
   el.innerHTML = `
     ${edit ? `<div class="alert info">Mengubah transaksi ${esc(tglIndo(t.tanggal))} — ${esc(t.keterangan)}
       <button class="btn ghost sm" id="m-batal" style="margin-left:8px">Batal ubah</button></div>` : `
-    <div class="card"><h2>Isi cepat</h2><div class="quick">${ISI_CEPAT.map((q, i) => `<button data-q="${i}">${q.label}</button>`).join('')}</div></div>`}
+    <div class="card"><h2>Isi cepat</h2><div class="quick">${ISI_CEPAT.map((q, i) => `<button data-q="${i}">${ic(q.ikon)}${q.label}</button>`).join('')}</div></div>`}
     <div class="card">
       ${pindah ? '<p class="small muted">Ini transaksi pindah dana: hanya tanggal, jumlah, dan keterangan yang bisa diubah.</p>' : `
       <div class="seg" id="m-jenis"><button data-j="masuk">Pemasukan</button><button data-j="keluar">Pengeluaran</button></div>`}
@@ -362,14 +362,14 @@ function formManual(el) {
         }
       }
       await api('simpanTransaksi', data, 'Menyimpan…');
-      toast(edit ? 'Perubahan tersimpan ✅' : 'Transaksi tersimpan ✅');
+      toast(edit ? 'Perubahan tersimpan' : 'Transaksi tersimpan');
       if (edit) { S.editTx = null; location.hash = '#/transaksi'; } else formManual(el);
     } catch (e) { toast(e.message, true); }
   };
 }
 
 function inputFotoHtml(id, teks) {
-  return `<label class="btn ghost block" style="margin-top:0">📷 ${teks}<input type="file" id="${id}" accept="image/*" class="hidden"></label>`;
+  return `<label class="btn ghost block" style="margin-top:0">${ic('kamera')}${teks}<input type="file" id="${id}" accept="image/*" class="hidden"></label>`;
 }
 
 function formNota(el) {
@@ -422,8 +422,8 @@ function isiFormNota(el, h, buktiUrl) {
     const hasil = sub + angka($('#n-ongkir').value) - angka($('#n-diskon').value);
     const total = angka($('#n-total').value);
     $('#n-cek').innerHTML = total && hasil !== total
-      ? `<span class="err">⚠️ Barang + ongkir − diskon = ${rp(hasil)}, beda dengan total nota ${rp(total)}. Yang disimpan mengikuti total nota.</span>`
-      : `<span class="in">✔ Jumlah cocok: ${rp(total || hasil)}</span>`;
+      ? `<span class="err">${ic('awas')} Barang + ongkir − diskon = ${rp(hasil)}, beda dengan total nota ${rp(total)}. Yang disimpan mengikuti total nota.</span>`
+      : `<span class="in">${ic('oke')} Jumlah cocok: ${rp(total || hasil)}</span>`;
   };
   $$('input', el).forEach((x) => x.addEventListener('input', hitung));
   hitung();
@@ -455,7 +455,7 @@ function isiFormNota(el, h, buktiUrl) {
       }
       out = out.filter((o) => o.jumlah > 0);
       await api('simpanBanyak', { items: out, bukti_url: buktiUrl, sumber: 'foto-nota' }, 'Menyimpan…');
-      toast(out.length + ' transaksi tersimpan ✅');
+      toast(out.length + ' transaksi tersimpan');
       S.foto = null; viewCatat($('#view'));
     } catch (e) { toast(e.message, true); }
   };
@@ -509,7 +509,7 @@ function isiFormMutasi(el, h, buktiUrl) {
         keterangan: $('.r-ket', r).value, kategori: $('.r-kat', r).value }));
       if (!items.length) throw new Error('Belum ada baris yang dicentang.');
       await api('simpanBanyak', { items, bukti_url: buktiUrl, sumber: 'foto-mutasi' }, 'Menyimpan…');
-      toast(items.length + ' transaksi tersimpan ✅');
+      toast(items.length + ' transaksi tersimpan');
       viewCatat($('#view'));
     } catch (e) { toast(e.message, true); }
   };
@@ -529,7 +529,7 @@ function formPindah(el) {
     try {
       await api('pindahDana', { dari: $('#p-dari').value, ke: $('#p-ke').value, tanggal: $('#p-tgl').value,
         jumlah: angka($('#p-jml').value), keterangan: $('#p-ket').value }, 'Menyimpan…');
-      toast('Pindah dana tersimpan ✅');
+      toast('Pindah dana tersimpan');
       formPindah(el);
     } catch (e) { toast(e.message, true); }
   };
@@ -539,7 +539,7 @@ function formPindah(el) {
 async function viewTransaksi(el) {
   const f = S.filter;
   el.innerHTML = `<div class="card">
-    <input id="t-q" placeholder="🔍 Cari keterangan, pembeli, nominal…" value="${esc(f.q || '')}">
+    <div class="search">${ic('cari')}<input id="t-q" placeholder="Cari keterangan, pembeli, nominal…" value="${esc(f.q || '')}"></div>
     <div class="filters">
       <input type="month" id="t-bulan" value="${esc(f.bulan || '')}">
       <select id="t-jenis"><option value="">Semua jenis</option><option value="masuk" ${f.jenis === 'masuk' ? 'selected' : ''}>Pemasukan</option><option value="keluar" ${f.jenis === 'keluar' ? 'selected' : ''}>Pengeluaran</option></select>
@@ -580,7 +580,7 @@ function detailTx(t, muatUlang) {
   modal(`<h2>Detail transaksi</h2>
     ${String(t.perlu_cek).toUpperCase() === 'TRUE' ? '<div class="alert warn small">Transaksi ini perlu dicek. Periksa jumlah & kategori, lalu simpan ulang lewat tombol Ubah.</div>' : ''}
     <div class="kv">${kv.map((x) => `<div>${esc(x[0])}</div><div>${esc(x[1])}</div>`).join('')}</div>
-    ${t.bukti_url ? `<p><a href="${esc(t.bukti_url)}" target="_blank" rel="noopener">📎 Lihat foto bukti</a></p>` : ''}
+    ${t.bukti_url ? `<p><a href="${esc(t.bukti_url)}" target="_blank" rel="noopener" class="ilink">${ic('klip')}Lihat foto bukti</a></p>` : ''}
     <div class="btnrow">
       ${bolehUbah ? '<button class="btn ghost" id="d-ubah">Ubah</button>' : ''}
       ${bisa('hapus') ? '<button class="btn danger" id="d-hapus">Hapus</button>' : ''}
@@ -604,8 +604,8 @@ async function viewStok(el, data) {
   el.innerHTML = `
     <div class="card hero"><div class="label">Stok kartu sekarang</div><div class="big num">${s.sekarang} kartu</div>
       <div class="small">Batas peringatan: ${s.batas}${s.opname_terakhir ? ' · Opname terakhir ' + tglIndo(s.opname_terakhir) : ''}</div></div>
-    ${s.rendah ? `<div class="alert bad">📦 Stok menipis (di bawah ${s.batas}). Segera produksi.</div>` : ''}
-    ${perluOpname ? '<div class="alert warn">🧮 Data stok lama terakhir diperbarui 28 Okt 2026. Tolong hitung fisik kartu yang ada sekarang, lalu isi di <b>Stok opname</b> di bawah supaya angkanya benar.</div>' : ''}
+    ${s.rendah ? `<div class="alert bad">${ic('kartu')}<span>Stok menipis (di bawah ${s.batas}). Segera produksi.</span></div>` : ''}
+    ${perluOpname ? `<div class="alert warn">${ic('opname')}<span>Data stok lama terakhir diperbarui 28 Okt 2026. Tolong hitung fisik kartu yang ada sekarang, lalu isi di <b>Stok opname</b> di bawah supaya angkanya benar.</span></div>` : ''}
     <div class="card"><h2>Stok opname (hitung fisik)</h2>
       <p class="small muted">Isi jumlah kartu jadi yang benar-benar ada. Sistem mencatat selisihnya otomatis.</p>
       <div class="row2"><div><label class="f">Jumlah kartu di tangan</label><input id="o-hitung" inputmode="numeric" placeholder="0"></div>
@@ -626,12 +626,12 @@ async function viewStok(el, data) {
     if (v === '') return toast('Isi jumlah kartu hasil hitung.', true);
     const ok = await konfirmasi('Simpan stok opname?', `Stok akan diset menjadi ${angka(v)} kartu (sekarang tercatat ${s.sekarang}).`, 'Simpan');
     if (!ok) return;
-    try { const r = await api('opname', { hitung: angka(v), tanggal: $('#o-tgl').value }, 'Menyimpan…'); toast('Stok opname tersimpan ✅'); viewStok(el, r); } catch (e) { toast(e.message, true); }
+    try { const r = await api('opname', { hitung: angka(v), tanggal: $('#o-tgl').value }, 'Menyimpan…'); toast('Stok opname tersimpan'); viewStok(el, r); } catch (e) { toast(e.message, true); }
   };
   $('#s-simpan').onclick = async () => {
     try {
       const r = await api('tambahStok', { jenis: $('#s-jenis').value, jumlah: angka($('#s-jml').value), tanggal: $('#s-tgl').value, keterangan: $('#s-ket').value }, 'Menyimpan…');
-      toast('Stok tersimpan ✅'); viewStok(el, r);
+      toast('Stok tersimpan'); viewStok(el, r);
     } catch (e) { toast(e.message, true); }
   };
   if (bisa('hapus')) {
@@ -649,9 +649,9 @@ async function viewStok(el, data) {
 /* ---------- Lainnya & Laporan ---------- */
 function viewLainnya(el) {
   el.innerHTML = `<div class="card"><ul class="list">
-    <li><a href="#/laporan">📄 Laporan bulanan</a></li>
-    ${isOwner() ? '<li><a href="#/pengaturan">⚙️ Pengaturan</a></li>' : ''}
-    <li><a href="#" id="l-keluar">🚪 Keluar</a></li></ul></div>
+    <li><a href="#/laporan" class="menu">${ic('laporan')}<span>Laporan bulanan</span>${ic('kanan', 'chev')}</a></li>
+    ${isOwner() ? `<li><a href="#/pengaturan" class="menu">${ic('atur')}<span>Pengaturan</span>${ic('kanan', 'chev')}</a></li>` : ''}
+    <li><a href="#" id="l-keluar" class="menu out">${ic('keluar')}<span>Keluar</span></a></li></ul></div>
     <p class="small muted">Masuk sebagai ${esc(S.user.email)} (${isOwner() ? 'owner' : 'admin'}).</p>`;
   $('#l-keluar').onclick = (e) => { e.preventDefault(); keluar(); };
 }
@@ -662,7 +662,7 @@ async function viewLaporan(el) {
   const r = d.ringkas;
   const baris = (list) => list.map((k) => `<li><span>${esc(k.nama)}</span><span class="num">${rp(k.jumlah)}</span></li>`).join('') || '<li class="muted">-</li>';
   el.innerHTML = `
-    <div class="monthnav no-print"><button class="btn ghost sm" id="r-prev">‹</button><b>${namaBulan(d.bulan)}</b><button class="btn ghost sm" id="r-next">›</button></div>
+    <div class="monthnav no-print"><button class="btn ghost sm" id="r-prev" aria-label="Bulan sebelumnya">${ic('kiri')}</button><b>${namaBulan(d.bulan)}</b><button class="btn ghost sm" id="r-next" aria-label="Bulan berikutnya">${ic('kanan')}</button></div>
     <div class="card"><h2>Laporan ${namaBulan(d.bulan)} — VepraCuan</h2>
       <h3>Pemasukan usaha</h3><ul class="list">${baris(r.per_masuk)}<li><b>Total pemasukan</b><b class="num">${rp(r.masuk)}</b></li></ul>
       <h3>Pengeluaran usaha</h3><ul class="list">${baris(r.per_keluar)}<li><b>Total pengeluaran</b><b class="num">${rp(r.keluar)}</b></li></ul>
@@ -673,7 +673,7 @@ async function viewLaporan(el) {
       <li><b>Total kas</b><b class="num">${rp(d.kas)}</b></li></ul></div>
     <div class="card"><h2>Stok kartu</h2><ul class="list"><li><span>Awal bulan</span><span>${d.stok.awal}</span></li><li><span>Masuk</span><span class="in">+${d.stok.masuk}</span></li>
       <li><span>Keluar</span><span class="out">−${d.stok.keluar}</span></li><li><b>Akhir bulan</b><b>${d.stok.akhir}</b></li></ul></div>
-    <button class="btn block no-print" onclick="window.print()">🖨️ Cetak / Simpan PDF</button>
+    <button class="btn block no-print" onclick="window.print()">${ic('cetak')}Cetak / Simpan PDF</button>
     <p class="small muted no-print">Di HP: ketuk tombol di atas, lalu pilih "Simpan sebagai PDF".</p>`;
   $('#r-prev').onclick = () => { S.bulan = geserBulan(S.bulan, -1); viewLaporan(el); };
   $('#r-next').onclick = () => { S.bulan = geserBulan(S.bulan, 1); viewLaporan(el); };
@@ -684,15 +684,15 @@ async function viewPengaturan(el, data) {
   if (!isOwner()) { el.innerHTML = '<div class="alert bad">Halaman ini hanya untuk owner.</div>'; return; }
   const p = data || await api('getPengaturan', {});
   const st = p.status;
-  const ok = (b) => (b ? '✅' : '❌');
+  const ok = (b) => (b ? ic('oke', 'in') : ic('gagal', 'out'));
   const setLabel = { batas_stok: 'Batas stok menipis (kartu)', lynk_hari_peringatan: 'Peringatan Lynk sepi (hari)', lynk_query: 'Pencarian Gmail Lynk', gemini_model: 'Model Gemini' };
   el.innerHTML = `
     <div class="card"><h2>Status sistem</h2><ul class="list">
       <li><span>Login Google (Client ID)</span><span>${ok(st.client_id)}</span></li>
       <li><span>Baca foto (kunci Gemini)</span><span>${ok(st.gemini)}</span></li>
       <li><span>Pencatatan Lynk otomatis tiap 10 menit</span><span>${ok(st.trigger_lynk)}</span></li>
-      <li><span>Cek Lynk terakhir</span><span class="small right">${st.lynk ? esc(st.lynk.waktu.replace('T', ' ')) + '<br>' + (st.lynk.ok ? '✅ ' : '❌ ') + esc(st.lynk.pesan) : '-'}</span></li></ul>
-      <p class="small"><a href="${esc(st.sheet_url)}" target="_blank" rel="noopener">📊 Buka Google Sheet</a> · <a href="${esc(st.folder_url)}" target="_blank" rel="noopener">📁 Folder bukti</a></p></div>
+      <li><span>Cek Lynk terakhir</span><span class="small right">${st.lynk ? esc(st.lynk.waktu.replace('T', ' ')) + '<br>' + (st.lynk.ok ? ic('oke', 'in') : ic('gagal', 'out')) + esc(st.lynk.pesan) : '-'}</span></li></ul>
+      <p class="small"><a href="${esc(st.sheet_url)}" target="_blank" rel="noopener" class="ilink">${ic('tabel')}Buka Google Sheet</a> · <a href="${esc(st.folder_url)}" target="_blank" rel="noopener" class="ilink">${ic('folder')}Folder bukti</a></p></div>
 
     <div class="card"><h2>Pengguna</h2><ul class="list">${p.pengguna.map((u) => `<li><span>${esc(u.nama)}<br><span class="small muted">${esc(u.email)}</span></span>
       <span class="right">${esc(u.peran)}${String(u.aktif).toUpperCase() === 'FALSE' ? '<br><span class="badge">nonaktif</span>' : ''}<br>
@@ -737,14 +737,14 @@ async function viewPengaturan(el, data) {
   $('#u-simpan').onclick = async () => {
     try {
       const r = await api('simpanPengguna', { email: $('#u-email').value, nama: $('#u-nama').value, peran: $('#u-peran').value, aktif: $('#u-aktif').checked }, 'Menyimpan…');
-      toast('Pengguna tersimpan ✅'); viewPengaturan(el, r);
+      toast('Pengguna tersimpan'); viewPengaturan(el, r);
     } catch (e) { toast(e.message, true); }
   };
   $('#k-simpan').onclick = async () => {
     try {
       const r = await api('simpanKategori', { nama: $('#k-nama').value, jenis: $('#k-jenis').value, hitung_laba: $('#k-laba').checked }, 'Menyimpan…');
       const b = await api('me', {}, false); Object.assign(S, b);
-      toast('Kategori ditambahkan ✅'); viewPengaturan(el, r);
+      toast('Kategori ditambahkan'); viewPengaturan(el, r);
     } catch (e) { toast(e.message, true); }
   };
   $$('button[data-simpan]', el).forEach((b) => {
@@ -753,7 +753,7 @@ async function viewPengaturan(el, data) {
         const k = b.dataset.simpan;
         const r = await api('simpanSetting', { kunci: k, nilai: $(`input[data-set="${k}"]`).value }, 'Menyimpan…');
         if (k === 'batas_stok') S.batas_stok = angka($(`input[data-set="${k}"]`).value);
-        toast('Tersimpan ✅'); viewPengaturan(el, r);
+        toast('Tersimpan'); viewPengaturan(el, r);
       } catch (e) { toast(e.message, true); }
     };
   });
@@ -783,6 +783,8 @@ async function viewPengaturan(el, data) {
 
 /* ---------- Mulai ---------- */
 (async function init() {
+  $$('[data-logo]').forEach((el) => { el.innerHTML = logoSvg(Number(el.dataset.logo), !!el.dataset.terang); });
+  $$('[data-ic]').forEach((el) => { el.innerHTML = ic(el.dataset.ic); });
   if (!CFG.API_URL || CFG.API_URL.indexOf('ISI_') === 0) {
     tampilLogin('Aplikasi belum disambungkan ke server (config.js belum diisi).');
     return;

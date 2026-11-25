@@ -6,16 +6,17 @@
   <meta name="theme-color" content="#14213d">
   <meta name="robots" content="noindex, nofollow">
   <title>Kas VepraCuan</title>
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2314213d'/%3E%3Ctext x='32' y='43' font-size='30' font-family='Arial' font-weight='700' text-anchor='middle' fill='white'%3EVC%3C/text%3E%3C/svg%3E">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%2314213d'/%3E%3Cpath d='M13 19 25.5 46 38 19' fill='none' stroke='white' stroke-width='6.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M42.5 27.5a6.5 6.5 0 0 1 0 9M47.5 23a13 13 0 0 1 0 18' fill='none' stroke='%238fb4ff' stroke-width='3.6' stroke-linecap='round'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="style.css">
   <script src="config.js"></script>
+  <script src="icons.js"></script>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
   <!-- Layar login -->
   <section id="login" class="login hidden">
     <div class="login-box">
-      <div class="logo">VC</div>
+      <div class="logo" data-logo="64"></div>
       <h1>Kas VepraCuan</h1>
       <p class="muted">Masuk dengan akun Google yang sudah diberi izin.</p>
       <div id="gbtn"></div>
@@ -26,16 +27,16 @@
   <!-- Aplikasi -->
   <section id="app" class="hidden">
     <header class="topbar">
-      <div class="brand"><span class="logo sm">VC</span> <span id="page-title">Beranda</span></div>
+      <div class="brand"><span class="logo sm" data-logo="32" data-terang="1"></span> <span id="page-title">Beranda</span></div>
       <div class="who" id="who"></div>
     </header>
     <main id="view" class="view"></main>
     <nav class="bottomnav">
-      <a href="#/beranda" data-nav="beranda"><span class="ic">⌂</span>Beranda</a>
-      <a href="#/catat" data-nav="catat"><span class="ic">＋</span>Catat</a>
-      <a href="#/transaksi" data-nav="transaksi"><span class="ic">☰</span>Transaksi</a>
-      <a href="#/stok" data-nav="stok"><span class="ic">▦</span>Stok</a>
-      <a href="#/lainnya" data-nav="lainnya"><span class="ic">⋯</span>Lainnya</a>
+      <a href="#/beranda" data-nav="beranda"><span class="ic" data-ic="home"></span>Beranda</a>
+      <a href="#/catat" data-nav="catat"><span class="ic" data-ic="catat"></span>Catat</a>
+      <a href="#/transaksi" data-nav="transaksi"><span class="ic" data-ic="daftar"></span>Transaksi</a>
+      <a href="#/stok" data-nav="stok"><span class="ic" data-ic="kartu"></span>Stok</a>
+      <a href="#/lainnya" data-nav="lainnya"><span class="ic" data-ic="lainnya"></span>Lainnya</a>
     </nav>
   </section>
 
