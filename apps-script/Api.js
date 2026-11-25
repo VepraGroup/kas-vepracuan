@@ -34,6 +34,8 @@ function doPost(e) {
   try {
     const req = JSON.parse((e && e.postData && e.postData.contents) || '{}');
     out = { ok: true, data: route_(req) };
+    // Kirim peran terbaru di setiap jawaban, supaya tampilan langsung menyesuaikan kalau peran diubah.
+    if (USER_SAAT_INI_) out.user = publicUser_(USER_SAAT_INI_);
   } catch (err) {
     if (!err.userMsg) console.error(err && err.stack ? err.stack : err);
     out = {
@@ -50,10 +52,13 @@ function doGet() {
     .setMimeType(ContentService.MimeType.JSON);
 }
 
+let USER_SAAT_INI_ = null;
+
 function route_(req) {
   if (req.action === 'login') return login_(req.data || {});
   if (req.action === 'logout') return logout_(req.token);
   const user = requireUser_(req.token);
+  USER_SAAT_INI_ = user;
   const all = routes_();
   const r = Object.prototype.hasOwnProperty.call(all, req.action) ? all[req.action] : null;
   if (!r) throw userErr_('Perintah tidak dikenal. Coba muat ulang halaman.');

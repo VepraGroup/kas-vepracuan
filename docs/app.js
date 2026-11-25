@@ -82,6 +82,7 @@ async function api(action, data, teksLoading) {
       if (j.code === 'AUTH') { keluarLokal(); }
       throw new Error(j.error || 'Terjadi kesalahan.');
     }
+    if (j.user && S.user && j.user.peran !== S.user.peran) sesuaikanPeran(j.user);
     return j.data;
   } finally {
     if (teksLoading !== false) loading(false);
@@ -123,12 +124,26 @@ async function keluar() {
   tampilLogin();
 }
 
+function tulisNama() {
+  $('#who').innerHTML = esc(S.user.nama) + '<br>' + (isOwner() ? 'Owner' : 'Admin');
+}
+/* Peran diubah owner saat halaman masih terbuka → tampilan langsung ikut berubah. */
+function sesuaikanPeran(u) {
+  S.user = u;
+  tulisNama();
+  toast('Peran kamu sekarang: ' + (u.peran === 'owner' ? 'Owner' : 'Admin') + '. Tampilan disesuaikan.');
+  tutupModal();
+  const hal = location.hash.replace(/^#\/?/, '').split('?')[0];
+  if (hal === 'pengaturan' && u.peran !== 'owner') location.hash = '#/beranda';
+  else setTimeout(router, 0);
+}
+
 async function mulai() {
   const b = await api('me', {}, 'Membuka buku kas…');
   Object.assign(S, b);
   $('#login').classList.add('hidden');
   $('#app').classList.remove('hidden');
-  $('#who').innerHTML = esc(S.user.nama) + '<br>' + (isOwner() ? 'Owner' : 'Admin');
+  tulisNama();
   if (!location.hash || location.hash === '#') location.hash = '#/beranda';
   else router();
 }
