@@ -30,7 +30,7 @@ function geserBulan(ym, n) {
 const AKUN_DOT = { Bank: 'dot-blue', 'E-wallet': 'dot-green', Lynk: 'dot-yellow', Marketplace: 'dot-red', Tunai: 'dot-purple' };
 const bub = (ikon, warna) => `<span class="bub ${warna}">${ic(ikon)}</span>`;
 const judul = (ikon, warna, teks) => `<h2>${bub(ikon, warna)}${teks}</h2>`;
-const bubTx = (t) => (String(t.kategori).indexOf('Pindah Dana') === 0 ? bub('tukar', 'c-blue') : t.jenis === 'masuk' ? bub('masuk', 'c-green') : bub('keluar', 'c-red'));
+const bubTx = (t) => (String(t.kategori).indexOf('Penyesuaian') === 0 ? bub('timbang', 'c-blue') : String(t.kategori).indexOf('Pindah Dana') === 0 ? bub('tukar', 'c-blue') : t.jenis === 'masuk' ? bub('masuk', 'c-green') : bub('keluar', 'c-red'));
 const isOwner = () => S.user && S.user.peran === 'owner';
 const bisa = (izin) => S.user && S.user.izin.indexOf(izin) >= 0;
 
@@ -254,6 +254,48 @@ function daftarKategoriHtml(list, total, cls) {
     <div class="bar ${cls || ''}"><span style="width:${total ? Math.round((k.jumlah / total) * 100) : 0}%"></span></div></div>
     <div class="num">${rp(k.jumlah)}</div></li>`).join('') + '</ul>';
 }
+/* Koreksi saldo satu akun: isi saldo sebenarnya, atau tambah / kurangi. */
+function koreksiSaldo(akun, saldo, selesai) {
+  let mode = 'set';
+  modal(`<h2>${bub('timbang', 'c-blue')} Koreksi saldo ${esc(akun)}</h2>
+    <div class="koreksi-info"><span>Saldo tercatat sekarang</span><b class="num">${rp(saldo)}</b></div>
+    <div class="seg" id="k-mode" style="margin-top:14px">
+      <button data-m="set" class="on">Saldo sebenarnya</button><button data-m="tambah">Tambah</button><button data-m="kurang">Kurangi</button></div>
+    <label class="f" id="k-label">Saldo ${esc(akun)} yang sebenarnya (Rp)</label>
+    <input class="rupiah num" id="k-nilai" inputmode="numeric" placeholder="0">
+    <div class="koreksi-info" id="k-hasil"><span>Saldo akan menjadi</span><b class="num">-</b></div>
+    <div class="row2"><div><label class="f">Tanggal</label><input type="date" id="k-tgl" value="${hariIni()}"></div>
+      <div><label class="f">Alasan (opsional)</label><input id="k-ket" placeholder="Contoh: cek saldo BCA"></div></div>
+    <p class="small muted">Koreksi saldo <b>tidak</b> dihitung sebagai pemasukan/pengeluaran usaha. Kalau selisihnya karena ada penjualan atau belanja yang lupa dicatat, lebih baik catat lewat menu <b>Catat</b> supaya laba ikut benar.</p>
+    <div class="btnrow"><button class="btn ghost" id="k-batal">Batal</button><button class="btn" id="k-simpan">Simpan koreksi</button></div>`);
+  pasangRupiah($('#modal-card'));
+  const hitung = () => {
+    const n = angka($('#k-nilai').value);
+    const baru = mode === 'set' ? n : mode === 'tambah' ? saldo + n : saldo - n;
+    const sel = baru - saldo;
+    $('#k-hasil').innerHTML = `<span>Saldo akan menjadi</span><b class="num">${$('#k-nilai').value ? rp(baru) + ` <span class="${sel >= 0 ? 'in' : 'out'}">(${sel >= 0 ? '+' : '−'}${rp(Math.abs(sel))})</span>` : '-'}</b>`;
+  };
+  $$('#k-mode button').forEach((b) => {
+    b.onclick = () => {
+      mode = b.dataset.m;
+      $$('#k-mode button').forEach((x) => x.classList.toggle('on', x === b));
+      $('#k-label').textContent = mode === 'set' ? `Saldo ${akun} yang sebenarnya (Rp)` : mode === 'tambah' ? 'Tambah sebanyak (Rp)' : 'Kurangi sebanyak (Rp)';
+      hitung();
+    };
+  });
+  $('#k-nilai').addEventListener('input', hitung);
+  $('#k-batal').onclick = tutupModal;
+  $('#k-simpan').onclick = async () => {
+    if (!$('#k-nilai').value.trim()) return toast('Isi jumlahnya dulu.', true);
+    try {
+      const r = await api('koreksiSaldo', { akun, mode, nilai: angka($('#k-nilai').value), tanggal: $('#k-tgl').value, keterangan: $('#k-ket').value }, 'Menyimpan koreksi…');
+      tutupModal();
+      toast(`Saldo ${akun} sekarang ${rp(r.sesudah)}`);
+      if (selesai) selesai();
+    } catch (e) { toast(e.message, true); }
+  };
+}
+
 /* Beranda admin: tanpa angka uang sama sekali (server juga tidak mengirimnya). */
 function berandaAdmin(el, d) {
   let alerts = '';
@@ -303,7 +345,8 @@ async function viewBeranda(el) {
     <div class="card hero">
       <div class="label">Kas sekarang (semua akun)</div>
       <div class="big num">${rp(d.kas)}</div>
-      <div class="chips">${d.saldo.map((s) => `<div class="chip ${AKUN_DOT[s.akun] || 'dot-blue'}"><span class="nm">${esc(s.akun)}</span><b class="num">${rp(s.saldo)}</b></div>`).join('')}</div>
+      <div class="chips">${d.saldo.map((s) => `<button class="chip ${AKUN_DOT[s.akun] || 'dot-blue'}" data-akun="${esc(s.akun)}" data-saldo="${s.saldo}"><span class="nm">${esc(s.akun)}</span><b class="num">${rp(s.saldo)}</b></button>`).join('')}</div>
+      <div class="hint-koreksi">${ic('pensil')}Ketuk saldo akun untuk mengoreksi kalau tidak sesuai kenyataan</div>
     </div>
     ${alerts}
     <div class="card">
@@ -334,6 +377,7 @@ async function viewBeranda(el) {
     <div class="card">${judul('kartu', 'c-red', 'Stok kartu')}<p>Sisa <b>${d.stok.sekarang}</b> kartu <span class="muted small">(batas peringatan ${d.stok.batas})</span></p>
       <a class="btn ghost sm" href="#/stok">Buka Stok</a></div>`;
   renderGrafik(d.grafik, d.grafik.length - 1, true);
+  $$('.hero [data-akun]', el).forEach((b) => { b.onclick = () => koreksiSaldo(b.dataset.akun, Number(b.dataset.saldo), () => viewBeranda(el)); });
   $('#b-prev').onclick = () => { S.bulan = geserBulan(S.bulan, -1); viewBeranda(el); };
   $('#b-next').onclick = () => { S.bulan = geserBulan(S.bulan, 1); viewBeranda(el); };
   $('#b-lynk').onclick = async () => {
@@ -672,53 +716,81 @@ async function viewTransaksi(el) {
       <select id="t-kat"><option value="">Semua kategori</option>${opsiKategori(null, f.kategori, true)}</select>
     </div>
     <label class="check" style="margin-top:10px"><input type="checkbox" id="t-cek" ${f.perlu_cek ? 'checked' : ''}> Hanya yang perlu dicek</label>
+    ${bisa('hapus') ? `<label class="check" style="margin-top:8px"><input type="checkbox" id="t-hapus" ${f.terhapus ? 'checked' : ''}> Lihat yang sudah dihapus</label>` : ''}
     ${bisa('keuangan') ? '' : '<p class="small muted" style="margin:10px 0 0">Menampilkan catatan yang kamu buat sendiri.</p>'}
     </div><div id="t-list"></div>`;
   if (!f.akun) $('#t-akun').value = '';
   if (!f.kategori) $('#t-kat').value = '';
   const muat = async () => {
     S.filter = { q: $('#t-q').value.trim(), bulan: $('#t-bulan').value, jenis: $('#t-jenis').value, akun: $('#t-akun').value,
-      kategori: $('#t-kat').value, perlu_cek: $('#t-cek').checked };
+      kategori: $('#t-kat').value, perlu_cek: $('#t-cek').checked, terhapus: !!($('#t-hapus') && $('#t-hapus').checked) };
     const box = $('#t-list');
     box.innerHTML = '<p class="muted">Memuat…</p>';
     try {
       const r = await api('listTransaksi', S.filter, false);
-      box.innerHTML = `<div class="card"><div class="sumrow"><span class="pill c-blue">${r.total} transaksi</span><span class="pill c-green">${ic('masuk')}${rp(r.masuk)}</span><span class="pill c-red">${ic('keluar')}${rp(r.keluar)}</span></div>${r.total > r.items.length ? '<p class="small muted">Menampilkan ' + r.items.length + ' terbaru</p>' : ''}
-        ${r.items.length ? r.items.map((t, i) => `<div class="tx" data-i="${i}">${bubTx(t)}<div class="mid"><div class="t1">${esc(t.keterangan || t.kategori)}${String(t.perlu_cek).toUpperCase() === 'TRUE' ? '<span class="badge">perlu dicek</span>' : ''}</div>
-          <div class="t2">${tglIndo(t.tanggal)} · ${esc(t.kategori)} · ${esc(t.akun)}${t.qty_kartu ? ' · ' + t.qty_kartu + ' kartu' : ''}</div></div>
-          <div class="amt num ${String(t.kategori).indexOf('Pindah Dana') === 0 ? 'pd' : t.jenis === 'masuk' ? 'in' : 'out'}">${t.jenis === 'masuk' ? '+' : '−'}${rp(t.jumlah)}</div></div>`).join('') : '<p class="muted">Tidak ada transaksi.</p>'}</div>`;
-      $$('.tx', box).forEach((row) => { row.onclick = () => detailTx(r.items[Number(row.dataset.i)], muat); });
+      const terhapus = S.filter.terhapus;
+      const tombol = (t, i) => {
+        if (terhapus) return `<div class="aksi"><button class="btn sm ghost" data-pulih="${i}">${ic('pulih')}Pulihkan</button></div>`;
+        const ubah = bisa('ubah_semua') || (bisa('ubah') && t.dibuat_oleh === S.user.email);
+        if (!ubah && !bisa('hapus')) return '';
+        return `<div class="aksi">${ubah ? `<button class="btn sm ghost" data-ubah="${i}">${ic('pensil')}Ubah</button>` : ''}${bisa('hapus') ? `<button class="btn sm ghost merah" data-hapus="${i}">${ic('sampah')}Hapus</button>` : ''}</div>`;
+      };
+      box.innerHTML = `<div class="card">
+        ${terhapus ? '<div class="alert warn">' + ic('sampah') + '<span>Ini transaksi yang <b>sudah dihapus</b>. Tekan <b>Pulihkan</b> untuk mengembalikannya.</span></div>' : ''}
+        <div class="sumrow"><span class="pill c-blue">${r.total} transaksi</span><span class="pill c-green">${ic('masuk')}${rp(r.masuk)}</span><span class="pill c-red">${ic('keluar')}${rp(r.keluar)}</span></div>
+        ${r.total > r.items.length ? '<p class="small muted">Menampilkan ' + r.items.length + ' terbaru</p>' : ''}
+        ${!terhapus && r.items.length ? '<p class="small muted" style="margin:4px 0 0">Ketuk transaksi untuk melihat detail, atau langsung pakai tombol Ubah / Hapus.</p>' : ''}
+        ${r.items.length ? r.items.map((t, i) => `<div class="tx ${terhapus ? 'mati' : ''}" data-i="${i}">${bubTx(t)}<div class="mid"><div class="t1">${esc(t.keterangan || t.kategori)}${String(t.perlu_cek).toUpperCase() === 'TRUE' ? '<span class="badge">perlu dicek</span>' : ''}</div>
+          <div class="t2">${tglIndo(t.tanggal)} · ${esc(t.kategori)} · ${esc(t.akun)}${t.qty_kartu ? ' · ' + t.qty_kartu + ' kartu' : ''}</div>${tombol(t, i)}</div>
+          <div class="amt num ${String(t.kategori).indexOf('Pindah Dana') === 0 || String(t.kategori).indexOf('Penyesuaian') === 0 ? 'pd' : t.jenis === 'masuk' ? 'in' : 'out'}">${t.jenis === 'masuk' ? '+' : '−'}${rp(t.jumlah)}</div></div>`).join('') : '<p class="muted">Tidak ada transaksi.</p>'}</div>`;
+      $$('.tx', box).forEach((row) => { row.onclick = () => detailTx(r.items[Number(row.dataset.i)], muat, terhapus); });
+      $$('[data-ubah]', box).forEach((b) => { b.onclick = (e) => { e.stopPropagation(); ubahTx(r.items[Number(b.dataset.ubah)]); }; });
+      $$('[data-hapus]', box).forEach((b) => { b.onclick = (e) => { e.stopPropagation(); hapusTx(r.items[Number(b.dataset.hapus)], muat); }; });
+      $$('[data-pulih]', box).forEach((b) => { b.onclick = (e) => { e.stopPropagation(); pulihkanTx(r.items[Number(b.dataset.pulih)], muat); }; });
     } catch (e) { box.innerHTML = `<div class="alert bad">${esc(e.message)}</div>`; }
   };
   let timer;
   $('#t-q').addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(muat, 400); });
-  ['#t-bulan', '#t-jenis', '#t-akun', '#t-kat', '#t-cek'].forEach((s) => $(s).addEventListener('change', muat));
+  ['#t-bulan', '#t-jenis', '#t-akun', '#t-kat', '#t-cek', '#t-hapus'].forEach((s) => { if ($(s)) $(s).addEventListener('change', muat); });
   muat();
 }
 
-function detailTx(t, muatUlang) {
+function ubahTx(t) { tutupModal(); S.editTx = t; S.catatTab = 'manual'; location.hash = '#/catat'; }
+async function hapusTx(t, muatUlang) {
+  tutupModal();
+  const ok = await konfirmasi('Hapus transaksi?', `${t.keterangan || t.kategori} — ${rp(t.jumlah)}. Saldo dan laporan langsung ikut berubah. Kalau salah hapus, bisa dipulihkan lewat "Lihat yang sudah dihapus".`, 'Ya, hapus', true);
+  if (!ok) return;
+  try { await api('hapusTransaksi', { id: t.id }, 'Menghapus…'); toast('Transaksi dihapus'); muatUlang(); } catch (e) { toast(e.message, true); }
+}
+async function pulihkanTx(t, muatUlang) {
+  tutupModal();
+  const ok = await konfirmasi('Pulihkan transaksi?', `${t.keterangan || t.kategori} — ${rp(t.jumlah)} akan dihitung lagi di saldo dan laporan.`, 'Ya, pulihkan');
+  if (!ok) return;
+  try { await api('pulihkanTransaksi', { id: t.id }, 'Memulihkan…'); toast('Transaksi dipulihkan'); muatUlang(); } catch (e) { toast(e.message, true); }
+}
+
+function detailTx(t, muatUlang, terhapus) {
   const kv = [['Tanggal', tglIndo(t.tanggal)], ['Jenis', t.jenis === 'masuk' ? 'Pemasukan' : 'Pengeluaran'], ['Jumlah', rp(t.jumlah)],
     ['Kategori', t.kategori], ['Akun', t.akun], ['Keterangan', t.keterangan], ['Pembeli', t.pembeli], ['Produk', t.produk],
     ['Jumlah kartu', t.qty_kartu], ['Harga barang', t.harga_barang ? rp(t.harga_barang) : ''], ['Ongkir', t.ongkir ? rp(t.ongkir) : ''],
     ['Biaya Lynk', t.biaya_lynk ? rp(t.biaya_lynk) : ''], ['Sumber', t.sumber], ['Dicatat oleh', t.dibuat_oleh + ' · ' + String(t.dibuat_pada).replace('T', ' ')],
-    ['Diubah', t.diubah_oleh ? t.diubah_oleh + ' · ' + String(t.diubah_pada).replace('T', ' ') : '']].filter((x) => x[1] !== '' && x[1] != null);
-  const bolehUbah = bisa('ubah_semua') || (bisa('ubah') && t.dibuat_oleh === S.user.email);
+    ['Diubah', t.diubah_oleh ? t.diubah_oleh + ' · ' + String(t.diubah_pada).replace('T', ' ') : ''],
+    ['Dihapus', t.dihapus_oleh ? t.dihapus_oleh + ' · ' + String(t.dihapus_pada).replace('T', ' ') : '']].filter((x) => x[1] !== '' && x[1] != null);
+  const bolehUbah = !terhapus && (bisa('ubah_semua') || (bisa('ubah') && t.dibuat_oleh === S.user.email));
   modal(`<h2>Detail transaksi</h2>
     ${String(t.perlu_cek).toUpperCase() === 'TRUE' ? '<div class="alert warn small">Transaksi ini perlu dicek. Periksa jumlah & kategori, lalu simpan ulang lewat tombol Ubah.</div>' : ''}
+    ${t.pasangan_id && !terhapus ? '<div class="alert info small">Ini pindah dana (2 baris). Mengubah atau menghapus satu baris otomatis ikut mengubah pasangannya.</div>' : ''}
     <div class="kv">${kv.map((x) => `<div>${esc(x[0])}</div><div>${esc(x[1])}</div>`).join('')}</div>
     ${t.bukti_url ? `<p><a href="${esc(t.bukti_url)}" target="_blank" rel="noopener" class="ilink">${ic('klip')}Lihat foto bukti</a></p>` : ''}
     <div class="btnrow">
-      ${bolehUbah ? '<button class="btn ghost" id="d-ubah">Ubah</button>' : ''}
-      ${bisa('hapus') ? '<button class="btn danger" id="d-hapus">Hapus</button>' : ''}
+      ${bolehUbah ? `<button class="btn ghost" id="d-ubah">${ic('pensil')}Ubah</button>` : ''}
+      ${!terhapus && bisa('hapus') ? `<button class="btn danger" id="d-hapus">${ic('sampah')}Hapus</button>` : ''}
+      ${terhapus && bisa('hapus') ? `<button class="btn go-in" id="d-pulih">${ic('pulih')}Pulihkan</button>` : ''}
       <button class="btn ghost" id="d-tutup">Tutup</button></div>`);
   $('#d-tutup').onclick = tutupModal;
-  if ($('#d-ubah')) $('#d-ubah').onclick = () => { tutupModal(); S.editTx = t; S.catatTab = 'manual'; location.hash = '#/catat'; };
-  if ($('#d-hapus')) $('#d-hapus').onclick = async () => {
-    tutupModal();
-    const ok = await konfirmasi('Hapus transaksi?', `${t.keterangan || t.kategori} — ${rp(t.jumlah)}. Data tidak benar-benar hilang (masih bisa dicek di Sheet & riwayat).`, 'Ya, hapus', true);
-    if (!ok) return;
-    try { await api('hapusTransaksi', { id: t.id }, 'Menghapus…'); toast('Transaksi dihapus'); muatUlang(); } catch (e) { toast(e.message, true); }
-  };
+  if ($('#d-ubah')) $('#d-ubah').onclick = () => ubahTx(t);
+  if ($('#d-hapus')) $('#d-hapus').onclick = () => hapusTx(t, muatUlang);
+  if ($('#d-pulih')) $('#d-pulih').onclick = () => pulihkanTx(t, muatUlang);
 }
 
 /* ---------- Stok ---------- */

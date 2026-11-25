@@ -285,3 +285,18 @@ pre.raw { white-space: pre-wrap; word-break: break-word; background: var(--bg); 
 .ginfo b { font-size: 14px; overflow: hidden; text-overflow: ellipsis; }
 @media (max-width: 380px) { .ginfo b { font-size: 12.5px; } }
 @media (prefers-reduced-motion: reduce) { .tumbuh, .muncul { animation: none; } }
+
+/* Tombol aksi di daftar transaksi */
+.aksi { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+.aksi .btn.sm { padding: 6px 10px; min-height: 32px; font-size: 13px; gap: 5px; }
+.btn .i { width: 18px; height: 18px; }
+.aksi .btn .i { width: 15px; height: 15px; }
+.btn.ghost.merah { background: var(--red-soft); color: var(--red); }
+.tx.mati .t1, .tx.mati .amt { text-decoration: line-through; opacity: .6; }
+
+/* Saldo bisa diketuk untuk koreksi */
+button.chip { font: inherit; color: inherit; text-align: left; cursor: pointer; }
+button.chip:active { background: rgba(255, 255, 255, .22); }
+.hint-koreksi { display: flex; align-items: center; gap: 6px; font-size: 12px; opacity: .8; margin-top: 10px; }
+.hint-koreksi .i { width: 15px; height: 15px; }
+.koreksi-info { background: var(--navy-soft); border-radius: 12px; padding: 10px 12px; font-size: 14px; display: flex; justify-content: space-between; gap: 10px; margin-top: 10px; }

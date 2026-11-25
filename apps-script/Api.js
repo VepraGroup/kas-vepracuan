@@ -10,8 +10,10 @@ function routes_() { return {
   dashboard:       { izin: 'lihat',      fn: function (d, u) { return can_(u, 'keuangan') ? dashboard_(d) : dashboardAdmin_(u); } },
   listTransaksi:   { izin: 'lihat',      fn: function (d, u) {
     // Admin hanya melihat catatan yang dia buat sendiri.
-    return listTransaksi_(can_(u, 'keuangan') ? d : Object.assign({}, d, { oleh: u.email }));
+    return listTransaksi_(can_(u, 'keuangan') ? d : Object.assign({}, d, { oleh: u.email, terhapus: false }));
   } },
+  koreksiSaldo:    { izin: 'keuangan',   fn: koreksiSaldo_, tulis: true },
+  pulihkanTransaksi: { izin: 'hapus',    fn: pulihkanTransaksi_, tulis: true },
   simpanTransaksi: { izin: 'tambah',     fn: simpanTransaksi_, tulis: true },
   simpanBanyak:    { izin: 'tambah',     fn: simpanBanyak_, tulis: true },
   pindahDana:      { izin: 'keuangan',   fn: pindahDana_, tulis: true },

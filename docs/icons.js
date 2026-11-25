@@ -39,7 +39,11 @@ const IKON = {
   keluar: '<path d="M7 17 17 7"/><path d="M8 7h9v9"/>',
   laba: '<path d="m3 17 6-6 4 4 8-8"/><path d="M15 7h6v6"/>',
   grafik: '<path d="M3 20.5h18"/><rect x="5" y="11" width="3.2" height="7" rx="1"/><rect x="10.4" y="6" width="3.2" height="12" rx="1"/><rect x="15.8" y="13" width="3.2" height="5" rx="1"/>',
-  petir: '<path d="M13 2.5 4.5 13.5H11l-1 8 8.5-11H12z"/>',
+  pensil: '<path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16z"/><path d="m13.5 6.5 4 4"/>',
+  sampah: '<path d="M4 7h16M10 11v6M14 11v6"/><path d="M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12"/><path d="M9 7V4.5h6V7"/>',
+  pulih: '<path d="M4 12a8 8 0 1 0 2.5-5.8L4 8.5"/><path d="M4 4v4.5h4.5"/>',
+  timbang: '<path d="M12 4v16M7 20h10M5 8h14"/><path d="m5 8-3 6a3 3 0 0 0 6 0zM19 8l-3 6a3 3 0 0 0 6 0z"/>',
+  petir:'<path d="M13 2.5 4.5 13.5H11l-1 8 8.5-11H12z"/>',
 };
 
 function ic(nama, cls) {

@@ -53,6 +53,19 @@ Kalau peran seseorang diubah, tampilannya ikut berubah saat dia membuka halaman 
 - Ketuk transaksi untuk melihat detail, foto bukti, **Ubah**, atau **Hapus** (khusus owner).
 - Transaksi yang dihapus **tidak benar-benar hilang**. Di Sheet, kolom `dihapus` terisi TRUE, dan perubahannya tercatat di tab **Log**.
 
+### Memperbaiki salah input atau salah hitung (owner)
+| Masalah | Caranya |
+|---|---|
+| Ada transaksi yang salah jumlah, tanggal, kategori, atau akun | **Transaksi** → tombol **Ubah** di transaksinya → perbaiki → **Simpan perubahan** |
+| Ada transaksi dobel atau tidak seharusnya ada | **Transaksi** → tombol **Hapus** |
+| Salah hapus | **Transaksi** → centang **Lihat yang sudah dihapus** → **Pulihkan** |
+| Ada pemasukan atau pengeluaran yang lupa dicatat | **Catat** → isi seperti biasa (tanggal boleh mundur). Laba ikut terhitung |
+| Saldo akun di aplikasi beda dengan kenyataan (misalnya saldo BCA) | **Beranda** → ketuk saldo akunnya (Bank, Lynk, dll.) → isi **Saldo sebenarnya**, atau **Tambah/Kurangi** → **Simpan koreksi** |
+
+Koreksi saldo dicatat sebagai **Penyesuaian Saldo**, jadi tidak mengubah laba usaha. Koreksi ini juga muncul di daftar transaksi dengan ikon timbangan biru, dan bisa diubah atau dihapus seperti transaksi lain.
+
+Owner juga bisa mengedit langsung di Google Sheet (tab **Transaksi**, misalnya kolom `jumlah`, `tanggal`, `kategori`). Aplikasi langsung membaca perubahannya. Jangan mengubah kolom `id`, `ref_id`, dan `pasangan_id`.
+
 ### Stok
 - **Stok opname**: hitung fisik kartu jadi yang ada, isi angkanya, lalu Simpan. Sistem mencatat selisihnya sendiri.
 - **Catat perubahan stok**: produksi (+), cacat (−), dipakai tes (−), dititip (−), titipan kembali (+).

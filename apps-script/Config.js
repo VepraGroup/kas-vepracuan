@@ -47,6 +47,8 @@ const DEFAULT_KATEGORI = [
   ['Pengeluaran Lain', 'keluar', true],
   ['Prive (ambil pribadi)', 'keluar', false],
   ['Pindah Dana (keluar)', 'keluar', false],
+  ['Penyesuaian Saldo (masuk)', 'masuk', false],
+  ['Penyesuaian Saldo (keluar)', 'keluar', false],
 ];
 
 const DEFAULT_AKUN = ['Bank', 'E-wallet', 'Lynk', 'Marketplace', 'Tunai'];

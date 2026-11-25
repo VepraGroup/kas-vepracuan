@@ -196,9 +196,80 @@ function syncStokForTx_(tx, u) {
   }
 }
 
+/** Kembalikan transaksi yang terhapus (beserta pasangan pindah dana & stoknya). */
+function pulihkanTransaksi_(d, u) {
+  const ex = findBy_('Transaksi', 'id', d.id);
+  if (!ex || !isTrue_(ex.dihapus)) throw userErr_('Transaksi ini tidak sedang terhapus.');
+  const targets = [ex];
+  if (ex.pasangan_id) {
+    const pair = findBy_('Transaksi', 'id', ex.pasangan_id);
+    if (pair && isTrue_(pair.dihapus)) targets.push(pair);
+  }
+  targets.forEach(function (r) {
+    r.dihapus = '';
+    r.dihapus_oleh = '';
+    r.dihapus_pada = '';
+    r.diubah_oleh = u.email;
+    r.diubah_pada = nowIso_();
+    updateRow_('Transaksi', r._row, r);
+    syncStokForTx_(r, u);
+    log_(u.email, 'pulihkan', 'Transaksi', r.id, clean_(r));
+  });
+  return { jumlah: targets.length };
+}
+
+const KATEGORI_KOREKSI_MASUK = 'Penyesuaian Saldo (masuk)';
+const KATEGORI_KOREKSI_KELUAR = 'Penyesuaian Saldo (keluar)';
+
+/** Pastikan kategori penyesuaian ada (tidak dihitung sebagai laba/rugi usaha). */
+function pastikanKategoriKoreksi_() {
+  [[KATEGORI_KOREKSI_MASUK, 'masuk'], [KATEGORI_KOREKSI_KELUAR, 'keluar']].forEach(function (k) {
+    if (!findBy_('Kategori', 'nama', k[0])) append_('Kategori', { nama: k[0], jenis: k[1], hitung_laba: 'FALSE', aktif: 'TRUE' });
+  });
+}
+
+/**
+ * Koreksi saldo satu akun supaya sama dengan kenyataan.
+ * mode 'set'    : saldo sebenarnya = d.nilai
+ * mode 'tambah' : saldo ditambah d.nilai
+ * mode 'kurang' : saldo dikurangi d.nilai
+ * Selisihnya dicatat sebagai "Penyesuaian Saldo" (tidak mengubah laba usaha).
+ */
+function koreksiSaldo_(d, u) {
+  const akun = String(d.akun || '');
+  if (!akunSet_()[akun]) throw userErr_('Pilih akun yang mau dikoreksi.');
+  const nilai = Math.round(num_(d.nilai) * 100) / 100;
+  const tanggal = String(d.tanggal || today_());
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(tanggal)) throw userErr_('Tanggal belum diisi dengan benar.');
+  const saldo = saldoPerAkun_(activeTx_())[akun] || 0;
+  let selisih;
+  if (d.mode === 'set') selisih = nilai - saldo;
+  else if (d.mode === 'tambah') selisih = nilai;
+  else if (d.mode === 'kurang') selisih = -nilai;
+  else throw userErr_('Pilih cara koreksi.');
+  if (d.mode !== 'set' && !(nilai > 0)) throw userErr_('Jumlah harus lebih dari Rp0.');
+  selisih = Math.round(selisih * 100) / 100;
+  if (Math.abs(selisih) < 0.01) throw userErr_('Saldo ' + akun + ' sudah sama, tidak ada yang perlu dikoreksi.');
+  pastikanKategoriKoreksi_();
+  const baru = Math.round((saldo + selisih) * 100) / 100;
+  const ket = String(d.keterangan || '').trim() ||
+    ('Koreksi saldo ' + akun + ': tercatat Rp' + saldo.toLocaleString('id-ID') + ' → Rp' + baru.toLocaleString('id-ID'));
+  const tx = {
+    id: newId_('koreksi'), tanggal: tanggal, jenis: selisih > 0 ? 'masuk' : 'keluar',
+    kategori: selisih > 0 ? KATEGORI_KOREKSI_MASUK : KATEGORI_KOREKSI_KELUAR, akun: akun, jumlah: Math.abs(selisih),
+    keterangan: ket.slice(0, 500), sumber: 'koreksi', dibuat_oleh: u.email, dibuat_pada: nowIso_(),
+  };
+  append_('Transaksi', tx);
+  log_(u.email, 'koreksi_saldo', 'Transaksi', tx.id, { akun: akun, sebelum: saldo, sesudah: baru });
+  return { akun: akun, sebelum: saldo, sesudah: baru, selisih: selisih };
+}
+
 function listTransaksi_(d) {
   const q = String(d.q || '').toLowerCase().trim();
-  let rows = activeTx_().filter(function (t) {
+  const sumber = d.terhapus
+    ? readAll_('Transaksi').filter(function (t) { return isTrue_(t.dihapus); })
+    : activeTx_();
+  let rows = sumber.filter(function (t) {
     if (d.oleh && t.dibuat_oleh !== d.oleh) return false;
     if (d.akun && t.akun !== d.akun) return false;
     if (d.kategori && t.kategori !== d.kategori) return false;
