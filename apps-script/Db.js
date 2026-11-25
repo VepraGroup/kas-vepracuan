@@ -24,9 +24,75 @@ function sheet_(name) {
 
 const ROWS_CACHE_ = {};
 
+/* ---------- Cache cepat (CacheService) ----------
+ * Membaca Sheet itu lambat (±0,2–1 detik per tab). Isi tiap tab disimpan di cache Google
+ * dengan "versi". Setiap kali aplikasi menulis ke tab itu, versinya diganti sehingga cache lama
+ * tidak dipakai lagi. Edit langsung di Google Sheet juga mengganti versi (lewat onEdit),
+ * dan cache tetap kedaluwarsa sendiri setelah 5 menit sebagai pengaman.
+ */
+const CACHE_TTL_ = 300;
+const TANPA_CACHE_ = { Log: true };
+const KUNCI_TAB_ = { Transaksi: 'id', Stok: 'id', StokBahan: 'id', Pengguna: 'email', Kategori: 'nama',
+  Bahan: 'kode', Pengaturan: 'kunci', Akun: 'nama', LynkProses: 'message_id' };
+
+function versiTab_(name) { return prop_('VER_' + name) || '0'; }
+function gantiVersi_(name) { props_().setProperty('VER_' + name, String(Date.now()) + Math.random().toString(36).slice(2, 5)); }
+
+function cacheAmbil_(key) {
+  try {
+    const c = CacheService.getScriptCache();
+    const n = Number(c.get(key));
+    if (!(n > 0)) return null;
+    const keys = [];
+    for (let i = 0; i < n; i++) keys.push(key + ':' + i);
+    const parts = c.getAll(keys);
+    let s = '';
+    for (let i = 0; i < keys.length; i++) {
+      if (parts[keys[i]] == null) return null;
+      s += parts[keys[i]];
+    }
+    return s;
+  } catch (e) { return null; }
+}
+
+function cacheSimpan_(key, s) {
+  try {
+    const ukuran = 30000; // aman di bawah batas 100KB per nilai (huruf non-ASCII bisa 3 byte)
+    const n = Math.max(1, Math.ceil(s.length / ukuran));
+    if (n > 60) return; // terlalu besar untuk cache, baca langsung saja
+    const obj = {};
+    for (let i = 0; i < n; i++) obj[key + ':' + i] = s.substr(i * ukuran, ukuran);
+    obj[key] = String(n);
+    CacheService.getScriptCache().putAll(obj, CACHE_TTL_);
+  } catch (e) { /* cache hanya untuk kecepatan; kalau gagal, abaikan */ }
+}
+
+/** Dijalankan otomatis oleh Google saat ada yang mengedit Sheet secara langsung. */
+function onEdit(e) {
+  try {
+    const name = e && e.range ? e.range.getSheet().getName() : '';
+    if (SHEETS[name]) gantiVersi_(name);
+  } catch (err) { /* abaikan */ }
+}
+
 /** Baca semua baris jadi array objek. Setiap objek punya _row (nomor baris di Sheet). */
 function readAll_(name) {
   if (ROWS_CACHE_[name]) return ROWS_CACHE_[name];
+  const pakaiCache = !TANPA_CACHE_[name];
+  const ckey = 'rows:' + name + ':' + versiTab_(name) + ':' + SHEETS[name].length;
+  if (pakaiCache) {
+    const s = cacheAmbil_(ckey);
+    if (s) {
+      try { ROWS_CACHE_[name] = JSON.parse(s); return ROWS_CACHE_[name]; } catch (e) { /* baca ulang */ }
+    }
+  }
+  const out = bacaTab_(name);
+  ROWS_CACHE_[name] = out;
+  if (pakaiCache) cacheSimpan_(ckey, JSON.stringify(out));
+  return out;
+}
+
+function bacaTab_(name) {
   const sh = sheet_(name);
   const cols = SHEETS[name];
   const last = sh.getLastRow();
@@ -41,7 +107,6 @@ function readAll_(name) {
       out.push(o);
     }
   }
-  ROWS_CACHE_[name] = out;
   return out;
 }
 
@@ -67,6 +132,7 @@ function append_(name, obj) {
   const sh = sheet_(name);
   sh.appendRow(toRow_(name, obj));
   delete ROWS_CACHE_[name];
+  gantiVersi_(name);
 }
 
 function appendMany_(name, objs) {
@@ -75,12 +141,27 @@ function appendMany_(name, objs) {
   const rows = objs.map(function (o) { return toRow_(name, o); });
   sh.getRange(sh.getLastRow() + 1, 1, rows.length, SHEETS[name].length).setValues(rows);
   delete ROWS_CACHE_[name];
+  gantiVersi_(name);
 }
 
 function updateRow_(name, rowNum, obj) {
   const sh = sheet_(name);
+  // Pengaman: pastikan baris yang ditimpa memang milik data ini (nomor baris bisa bergeser
+  // kalau ada baris yang dihapus/disisipkan langsung di Sheet).
+  const kunci = KUNCI_TAB_[name];
+  if (kunci && obj[kunci] !== undefined && obj[kunci] !== '') {
+    const kol = SHEETS[name].indexOf(kunci) + 1;
+    const isi = normCell_(sh.getRange(rowNum, kol).getValue());
+    if (String(isi) !== String(obj[kunci])) {
+      const segar = bacaTab_(name).filter(function (r) { return String(r[kunci]) === String(obj[kunci]); })[0];
+      if (!segar) throw userErr_('Data berubah di Google Sheet saat sedang disimpan. Muat ulang halaman lalu coba lagi.');
+      rowNum = segar._row;
+      obj._row = rowNum;
+    }
+  }
   sh.getRange(rowNum, 1, 1, SHEETS[name].length).setValues([toRow_(name, obj)]);
   delete ROWS_CACHE_[name];
+  gantiVersi_(name);
 }
 
 function findBy_(name, key, value) {

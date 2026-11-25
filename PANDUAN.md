@@ -129,6 +129,11 @@ Di halaman Pengaturan, owner juga bisa:
 
 ---
 
+### Kecepatan
+- Halaman langsung menampilkan **data terakhir** yang tersimpan di HP atau laptop, lalu memperbaruinya di belakang. Selama memperbarui, ada **garis tipis 4 warna** di bawah bar atas. Begitu garis itu hilang, angka yang tampil sudah yang terbaru.
+- Setelah login, data Beranda, Transaksi, Stok, Bahan, dan laporan diambil duluan, jadi saat menunya dibuka datanya sudah siap.
+- Data tersimpan ini dihapus otomatis saat **Keluar**.
+
 ## 5. Kalau ada masalah
 
 | Masalah | Yang dilakukan |

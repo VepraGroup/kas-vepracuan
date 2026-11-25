@@ -83,10 +83,94 @@ async function api(action, data, teksLoading) {
       throw new Error(j.error || 'Terjadi kesalahan.');
     }
     if (j.user && S.user && j.user.peran !== S.user.peran) sesuaikanPeran(j.user);
+    if (!AKSI_BACA[action] && action !== 'login' && action !== 'logout') MEMO.forEach((v) => { v.s = '~lama~'; });
     return j.data;
   } finally {
     if (teksLoading !== false) loading(false);
   }
+}
+
+/* ---------- Muat cepat ----------
+ * Halaman langsung menampilkan data terakhir yang tersimpan (instan), lalu data terbaru
+ * diambil diam-diam di belakang (garis 4 warna di bawah bar atas). Kalau ada yang berubah,
+ * tampilan diperbarui. Data tersimpan di browser ini saja dan dihapus saat keluar.
+ */
+const AKSI_BACA = { me: 1, dashboard: 1, listTransaksi: 1, getStok: 1, getBahan: 1, laporan: 1, arusKas: 1, neraca: 1,
+  getPengaturan: 1, lihatLog: 1, ujiLynk: 1 };
+const MEMO = new Map();
+const SEDANG_AMBIL = new Map();
+let JUMLAH_PROSES = 0;
+function progres(n) {
+  JUMLAH_PROSES = Math.max(0, JUMLAH_PROSES + n);
+  const p = $('#progres');
+  if (p) p.classList.toggle('on', JUMLAH_PROSES > 0);
+}
+const kunciMemo = (a, d) => a + '|' + JSON.stringify(d || {});
+const awalanSimpan = () => 'kasc:' + (S.user ? S.user.email : '-') + ':';
+function memoAmbil(k) {
+  if (MEMO.has(k)) return MEMO.get(k);
+  try {
+    const s = localStorage.getItem(awalanSimpan() + k);
+    if (s) { const o = { s, data: JSON.parse(s) }; MEMO.set(k, o); return o; }
+  } catch (e) { /* abaikan */ }
+  return null;
+}
+function memoSimpan(k, data) {
+  const s = JSON.stringify(data);
+  MEMO.set(k, { s, data });
+  try { localStorage.setItem(awalanSimpan() + k, s); } catch (e) { /* penuh / diblokir: abaikan */ }
+  return s;
+}
+function memoHapusSemua() {
+  MEMO.clear();
+  try { Object.keys(localStorage).filter((k) => k.indexOf('kasc:') === 0 || k === 'kas_me').forEach((k) => localStorage.removeItem(k)); } catch (e) { /* abaikan */ }
+}
+/** Ambil data dari server; permintaan yang sama dan sedang berjalan dipakai bersama. */
+function ambilData(action, data) {
+  const k = kunciMemo(action, data);
+  if (SEDANG_AMBIL.has(k)) return SEDANG_AMBIL.get(k);
+  progres(1);
+  const p = api(action, data, false).then((r) => { memoSimpan(k, r); return r; })
+    .finally(() => { SEDANG_AMBIL.delete(k); progres(-1); });
+  SEDANG_AMBIL.set(k, p);
+  return p;
+}
+const KERANGKA = '<div class="kerangka"><div></div><div></div><div></div></div>';
+/**
+ * opsi.wadah  : elemen yang diisi kerangka "memuat" kalau belum ada data tersimpan
+ * opsi.berlaku: fungsi; kalau mengembalikan false, hasil diabaikan (sudah ada permintaan yang lebih baru)
+ * opsi.abaikanKetik: tetap perbarui walau pengguna sedang mengetik di halaman
+ */
+async function muatCepat(action, data, render, opsi) {
+  opsi = opsi || {};
+  const k = kunciMemo(action, data);
+  const lama = memoAmbil(k);
+  const hash = location.hash;
+  const view = $('#view');
+  if (lama) render(lama.data);
+  else if (opsi.wadah) opsi.wadah.innerHTML = KERANGKA;
+  let baru;
+  try {
+    baru = await ambilData(action, data);
+  } catch (e) {
+    if (!lama) throw e;
+    toast('Belum bisa memperbarui data: ' + e.message, true);
+    return;
+  }
+  if (location.hash !== hash) return;
+  if (opsi.berlaku && !opsi.berlaku()) return;
+  if (lama && lama.s === JSON.stringify(baru)) return;
+  if (lama && !opsi.abaikanKetik && view.dataset.diketik) return; // jangan timpa isian yang sedang diketik
+  render(baru);
+}
+/** Ambil data halaman-halaman utama di belakang, supaya saat dibuka sudah siap. */
+function ambilDuluan() {
+  const bulan = hariIni().slice(0, 7);
+  const daftar = [['dashboard', { bulan }], ['getStok', {}], ['getBahan', {}],
+    ['listTransaksi', { q: '', bulan: '', jenis: '', akun: '', kategori: '', perlu_cek: false, terhapus: false }]];
+  if (bisa('keuangan')) daftar.push(['laporan', { bulan }], ['arusKas', { bulan }], ['neraca', { bulan }]);
+  if (isOwner()) daftar.push(['getPengaturan', {}]);
+  daftar.forEach(([a, d], i) => setTimeout(() => ambilData(a, d).catch(() => {}), i * 150));
 }
 
 /* ---------- Login ---------- */
@@ -114,6 +198,7 @@ async function onGoogle(resp) {
   }
 }
 function keluarLokal() {
+  memoHapusSemua();
   S.token = null;
   try { localStorage.removeItem('kas_token'); } catch (e) { /* abaikan */ }
 }
@@ -129,6 +214,7 @@ function tulisNama() {
 }
 /* Peran diubah owner saat halaman masih terbuka → tampilan langsung ikut berubah. */
 function sesuaikanPeran(u) {
+  memoHapusSemua();
   S.user = u;
   tulisNama();
   toast('Peran kamu sekarang: ' + (u.peran === 'owner' ? 'Owner' : 'Admin') + '. Tampilan disesuaikan.');
@@ -139,13 +225,24 @@ function sesuaikanPeran(u) {
 }
 
 async function mulai() {
-  const b = await api('me', {}, 'Membuka buku kas…');
+  let b = null;
+  try { b = JSON.parse(localStorage.getItem('kas_me') || 'null'); } catch (e) { b = null; }
+  const segar = api('me', {}, b ? false : 'Membuka buku kas…').then((x) => {
+    try { localStorage.setItem('kas_me', JSON.stringify(x)); } catch (e) { /* abaikan */ }
+    return x;
+  });
+  if (b) {
+    segar.then((x) => { const ganti = x.user.peran !== S.user.peran; Object.assign(S, x); tulisNama(); if (ganti) router(); }).catch((e) => { if (!S.token) tampilLogin(e.message); });
+  } else {
+    b = await segar;
+  }
   Object.assign(S, b);
   $('#login').classList.add('hidden');
   $('#app').classList.remove('hidden');
   tulisNama();
   if (!location.hash || location.hash === '#') location.hash = '#/beranda';
   else router();
+  setTimeout(ambilDuluan, 300);
 }
 
 /* ---------- Router ---------- */
@@ -164,6 +261,7 @@ async function router() {
     a.classList.toggle('active', n === name || (n === 'lainnya' && (['laporan', 'pengaturan', 'aruskas', 'neraca'].indexOf(name) >= 0)));
   });
   window.scrollTo(0, 0);
+  $('#view').dataset.diketik = '';
   try {
     await v[1]($('#view'));
   } catch (e) {
@@ -334,7 +432,9 @@ function berandaAdmin(el, d) {
 
 async function viewBeranda(el) {
   S.bulan = S.bulan || hariIni().slice(0, 7);
-  const d = await api('dashboard', { bulan: S.bulan });
+  return muatCepat('dashboard', { bulan: S.bulan }, (d) => tampilBeranda(el, d), { wadah: el });
+}
+function tampilBeranda(el, d) {
   if (d.admin) return berandaAdmin(el, d);
   const r = d.ringkas;
   let alerts = '';
@@ -755,9 +855,9 @@ async function viewTransaksi(el) {
     S.filter = { q: $('#t-q').value.trim(), bulan: $('#t-bulan').value, jenis: $('#t-jenis').value, akun: $('#t-akun').value,
       kategori: $('#t-kat').value, perlu_cek: $('#t-cek').checked, terhapus: !!($('#t-hapus') && $('#t-hapus').checked) };
     const box = $('#t-list');
-    box.innerHTML = '<p class="muted">Memuat…</p>';
+    const urutan = (S.urutTx = (S.urutTx || 0) + 1);
     try {
-      const r = await api('listTransaksi', S.filter, false);
+      await muatCepat('listTransaksi', S.filter, (r) => {
       const terhapus = S.filter.terhapus;
       const tombol = (t, i) => {
         if (terhapus) return `<div class="aksi"><button class="btn sm ghost" data-pulih="${i}">${ic('pulih')}Pulihkan</button></div>`;
@@ -777,6 +877,7 @@ async function viewTransaksi(el) {
       $$('[data-ubah]', box).forEach((b) => { b.onclick = (e) => { e.stopPropagation(); ubahTx(r.items[Number(b.dataset.ubah)]); }; });
       $$('[data-hapus]', box).forEach((b) => { b.onclick = (e) => { e.stopPropagation(); hapusTx(r.items[Number(b.dataset.hapus)], muat); }; });
       $$('[data-pulih]', box).forEach((b) => { b.onclick = (e) => { e.stopPropagation(); pulihkanTx(r.items[Number(b.dataset.pulih)], muat); }; });
+      }, { wadah: box, berlaku: () => urutan === S.urutTx, abaikanKetik: true });
     } catch (e) { box.innerHTML = `<div class="alert bad">${esc(e.message)}</div>`; }
   };
   let timer;
@@ -844,7 +945,8 @@ async function viewStok(el) {
 }
 
 async function viewKartu(el, data) {
-  const s = data || await api('getStok', {});
+  if (!data) return muatCepat('getStok', {}, (x) => viewKartu(el, x), { wadah: el });
+  const s = data;
   const perluOpname = !s.opname_terakhir;
   const resep = (S.bahan || []).filter((b) => b.per_kartu > 0);
   el.innerHTML = `
@@ -904,7 +1006,8 @@ async function viewKartu(el, data) {
 }
 
 async function viewBahan(el, data) {
-  const d = data || await api('getBahan', {});
+  if (!data) return muatCepat('getBahan', {}, (x) => viewBahan(el, x), { wadah: el });
+  const d = data;
   const opsi = d.bahan.map((b) => `<option value="${esc(b.kode)}">${esc(b.nama)}</option>`).join('');
   el.innerHTML = `
     <div class="card hero"><div class="label">Dengan bahan yang ada, bisa produksi</div>
@@ -1006,7 +1109,9 @@ function viewLainnya(el) {
 async function viewLaporan(el) {
   if (!bisa('keuangan')) { el.innerHTML = '<div class="alert bad">Laporan keuangan hanya untuk owner.</div>'; return; }
   S.bulan = S.bulan || hariIni().slice(0, 7);
-  const d = await api('laporan', { bulan: S.bulan });
+  return muatCepat('laporan', { bulan: S.bulan }, (d) => tampilLaporan(el, d), { wadah: el });
+}
+function tampilLaporan(el, d) {
   const r = d.ringkas;
   const baris = (list) => list.map((k) => `<li><span>${esc(k.nama)}</span><span class="num">${rp(k.jumlah)}</span></li>`).join('') || '<li class="muted">-</li>';
   el.innerHTML = `
@@ -1042,7 +1147,9 @@ function pasangNavBulan(id, ulang) {
 async function viewArusKas(el) {
   if (!bisa('keuangan')) { el.innerHTML = '<div class="alert bad">Arus kas hanya untuk owner.</div>'; return; }
   S.bulan = S.bulan || hariIni().slice(0, 7);
-  const a = await api('arusKas', { bulan: S.bulan });
+  return muatCepat('arusKas', { bulan: S.bulan }, (a) => tampilArusKas(el, a), { wadah: el });
+}
+function tampilArusKas(el, a) {
   el.innerHTML = `${navBulan('ak')}
     <div class="card hero"><div class="label">Kas akhir ${namaBulan(a.bulan)}</div><div class="big num">${rp(a.akhir)}</div>
       <div class="chips"><div class="chip dot-blue"><span class="nm">Kas awal bulan</span><b class="num">${rp(a.awal)}</b></div>
@@ -1071,7 +1178,9 @@ async function viewArusKas(el) {
 async function viewNeraca(el) {
   if (!bisa('keuangan')) { el.innerHTML = '<div class="alert bad">Neraca hanya untuk owner.</div>'; return; }
   S.bulan = S.bulan || hariIni().slice(0, 7);
-  const n = await api('neraca', { bulan: S.bulan });
+  return muatCepat('neraca', { bulan: S.bulan }, (n) => tampilNeraca(el, n), { wadah: el });
+}
+function tampilNeraca(el, n) {
   const seimbang = Math.abs(n.aset.total - n.ekuitas.total) < 1;
   el.innerHTML = `${navBulan('nr')}
     <div class="card hero"><div class="label">Neraca per ${tglIndo(n.tanggal)}</div><div class="big num">${rp(n.aset.total)}</div>
@@ -1101,7 +1210,8 @@ async function viewNeraca(el) {
 /* ---------- Pengaturan (owner) ---------- */
 async function viewPengaturan(el, data) {
   if (!isOwner()) { el.innerHTML = '<div class="alert bad">Halaman ini hanya untuk owner.</div>'; return; }
-  const p = data || await api('getPengaturan', {});
+  if (!data) return muatCepat('getPengaturan', {}, (x) => viewPengaturan(el, x), { wadah: el });
+  const p = data;
   const st = p.status;
   const ok = (b) => (b ? ic('oke', 'in') : ic('gagal', 'out'));
   const setLabel = { batas_stok: 'Batas stok menipis (kartu)', lynk_hari_peringatan: 'Peringatan Lynk sepi (hari)', lynk_query: 'Pencarian Gmail Lynk', gemini_model: 'Model Gemini' };
@@ -1202,6 +1312,7 @@ async function viewPengaturan(el, data) {
 
 /* ---------- Mulai ---------- */
 (async function init() {
+  $('#view').addEventListener('input', () => { $('#view').dataset.diketik = '1'; });
   $$('[data-logo]').forEach((el) => { el.innerHTML = logoSvg(Number(el.dataset.logo), !!el.dataset.terang); });
   $$('[data-ic]').forEach((el) => { el.innerHTML = ic(el.dataset.ic); });
   if (!CFG.API_URL || CFG.API_URL.indexOf('ISI_') === 0) {
